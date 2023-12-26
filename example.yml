@@ -1,0 +1,14 @@
+start: 2023-01-01
+end: 2024-01-01
+interest_rates:
+    - name: example
+      rate: 7.0
+transactions:
+    - name: deposit
+      amount: 50.00
+      destination: Bank
+      interest_rate: example
+assets:
+    - name: Bank
+      balance: 100.00
+      #interest_rate: example
