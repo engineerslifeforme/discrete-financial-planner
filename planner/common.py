@@ -1,5 +1,6 @@
 from decimal import Decimal
 import math
+from datetime import date
 
 from pydantic import BaseModel
 
@@ -49,3 +50,12 @@ def future_value(present_value: float, interest: float, periods: int) -> float:
     https://www.realized1031.com/glossary/future-value-fv#:~:text=In%20its%20most%20basic%20form,the%20number%20of%20time%20periods.
     """
     return present_value*math.pow((1+interest), periods)
+
+def create_value_change_log(action_type: str, action_name: str, amount: Decimal, changed_item: str, action_date: date = None) -> dict:
+    return {
+        "date": action_date,
+        "action_type": action_type,
+        "action_name": action_name,
+        "amount": amount,
+        "changed_item": changed_item,
+    }

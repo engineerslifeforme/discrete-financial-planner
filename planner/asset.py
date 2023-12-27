@@ -3,8 +3,12 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from planner.common import ZERO, round, DEFAULT_INTEREST, InterestBaseModel
-from planner.interest_rate import InterestRate
+from planner.common import (
+    ZERO, 
+    round, 
+    InterestBaseModel,
+    create_value_change_log,
+)
 from planner.transaction import Transaction
 
 class Asset(InterestBaseModel):
@@ -24,12 +28,18 @@ class Asset(InterestBaseModel):
     def mature(self) -> tuple:
         """Mature 1 day
 
-        :return: tuple of new balance and balance change
+        :return: tuple of new balance, balance change, change log
         :rtype: tuple
         """
         change = self.interest_rate.daily_rate * self.f_balance
         self.f_balance += change
-        return self.f_balance, change
+        log = create_value_change_log(
+            "Asset Maturity",
+            "1 Day",
+            round(Decimal(change)),
+            changed_item= self.name,
+        )
+        return self.f_balance, change, log
     
     @property
     def balance(self) -> Decimal:
@@ -57,7 +67,7 @@ class Asset(InterestBaseModel):
             "balance": str(self.balance)
         }
     
-    def execute_transaction(self, transaction: Transaction, deposit: bool, current_date: date) -> Decimal:
+    def execute_transaction(self, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
         """ Execute transaction on asset balance
 
         :param transaction: transaction to be executed
@@ -66,11 +76,19 @@ class Asset(InterestBaseModel):
         :type deposit: bool
         :param current_date: date of transaction
         :type current_date: date
-        :return: new balance of asset post transaction
-        :rtype: Decimal
+        :return: new balance of asset post transaction and log
+        :rtype: tuple
         """
         if deposit:
-            self.f_balance += transaction.get_amount(current_date)
+            amount = transaction.get_amount(current_date)
         else:
-            self.f_balance -= transaction.get_amount(current_date)
-        return self.balance
+            amount = -1.0 * transaction.get_amount(current_date)
+        self.f_balance += amount
+        log = create_value_change_log(
+            "Asset Transaction",
+            transaction.name,
+            round(Decimal(amount)),
+            self.name,
+            action_date = current_date,
+        )
+        return self.balance, log

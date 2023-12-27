@@ -2,3 +2,6 @@
 .vscode
 *.egg-info
 .pytest*
+*.yml
+!example.yml
+*.csv

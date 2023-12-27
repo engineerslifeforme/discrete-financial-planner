@@ -44,8 +44,9 @@ def main(configuration_path: Path, start: datetime.date = None, end: datetime.da
     else:
         configuration["end"] = end
     simulation = Simulation(**configuration)
-    _, asset_states = simulation.run()
+    _, asset_states, action_logs = simulation.run()
     pd.DataFrame(asset_states).to_csv("output.csv", index=False)
+    pd.DataFrame(action_logs).to_csv("changes.csv", index=False)
 
 def valid_date(s):
     try:

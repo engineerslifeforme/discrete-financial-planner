@@ -1,14 +1,15 @@
 from decimal import Decimal
-from enum import IntEnum
+from strenum import StrEnum
 from datetime import date
 
 from pydantic import BaseModel
 
 from planner.common import ZERO, DEFAULT_INTEREST, InterestBaseModel
 
-class FrequencyEnum(IntEnum):
-    monthly = 1
-    daily = 2
+class FrequencyEnum(StrEnum):
+    monthly = "monthly"
+    daily = "daily"
+    biweekly = "biweekly"
 
 class Transaction(InterestBaseModel):
     amount: Decimal = ZERO
@@ -83,7 +84,7 @@ class Transaction(InterestBaseModel):
             if self.last_executed is None:
                 if self.frequency == FrequencyEnum.daily:
                     execute = True
-                if self.frequency == FrequencyEnum.monthly:
+                elif self.frequency in [FrequencyEnum.monthly, FrequencyEnum.biweekly]:
                     if current_date.day == self.start.day:
                         execute = True
             else:
@@ -94,6 +95,9 @@ class Transaction(InterestBaseModel):
                     if (current_date.month != self.last_executed.month or \
                         current_date.year != self.last_executed.year) and \
                         current_date.day == self.last_executed.day:
+                        execute = True
+                elif self.frequency == FrequencyEnum.biweekly:
+                    if (current_date - self.last_executed).days == 14:
                         execute = True
                 else:
                     raise(ValueError(f"Unknown transaction frequency: {self.frequency}"))
