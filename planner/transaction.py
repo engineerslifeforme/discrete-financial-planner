@@ -23,6 +23,7 @@ class Transaction(DateBaseModel):
     source: str = None
     destination: str = None
     present_value_date: date = None
+    amount_required: bool = True
     last_executed: date = None # Private
 
     def get_amount(self, current_date: date) -> float:
@@ -48,6 +49,12 @@ class Transaction(DateBaseModel):
                 self.present_value_date,
                 current_date,
             )
+        if self.source is not None:
+            if return_amount > self.source.f_balance:
+                if self.amount_required:
+                    raise(ValueError(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) from source {self.source.name}"))
+                else:
+                    return self.source.f_balance
         return return_amount
 
     def setup(self, start_date: date, end_date: date, asset_dict: dict, interest_rates: dict, date_dict: dict):
