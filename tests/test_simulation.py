@@ -43,7 +43,7 @@ def test_simulation(simulation):
     assert(simulation.end == date(2024, 1, 1))
 
 def test_run(simulation):
-    days, _ = simulation.run()
+    days, _, _ = simulation.run()
     assert(days == 366) # 2024 leap year
     # Daily interest compounds a little differently
     # than the simply method below

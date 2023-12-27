@@ -32,7 +32,7 @@ class Simulation(BaseModel):
     assets: List[Asset] = []
     interest_rates: List[InterestRate] = []
     transactions: List[Transaction] = []
-    dates: Dict[str, date]
+    dates: Dict[str, date] = {}
 
     def __init__(self, *args, **kwargs):
         """Initialization with setup
