@@ -2,7 +2,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta 
 
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 
 from planner.asset import Asset
 from planner.interest_rate import InterestRate
@@ -32,6 +32,7 @@ class Simulation(BaseModel):
     assets: List[Asset] = []
     interest_rates: List[InterestRate] = []
     transactions: List[Transaction] = []
+    dates: Dict[str, date]
 
     def __init__(self, *args, **kwargs):
         """Initialization with setup
@@ -52,7 +53,7 @@ class Simulation(BaseModel):
             asset.get_interest_rate(interest_rate_dict)
         asset_dict = {a.name: a for a in self.assets}
         for transaction in self.transactions:
-            transaction.setup(self.start, self.end, asset_dict, interest_rate_dict)
+            transaction.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
 
     def run(self) -> tuple:
         """ Run simulation from start to end

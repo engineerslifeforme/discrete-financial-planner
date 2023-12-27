@@ -4,7 +4,10 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from planner.common import ZERO, DEFAULT_INTEREST, InterestBaseModel
+from planner.common import (
+    ZERO, 
+    DateBaseModel,
+)
 
 class FrequencyEnum(StrEnum):
     monthly = "monthly"
@@ -12,12 +15,11 @@ class FrequencyEnum(StrEnum):
     biweekly = "biweekly"
     yearly = "yearly"
 
-class Transaction(InterestBaseModel):
+class Transaction(DateBaseModel):
     amount: Decimal = ZERO
     amount_remaining_balance: bool = False
+    amount_above: Decimal = None
     frequency: FrequencyEnum = FrequencyEnum.monthly
-    start: date = None
-    end: date = None
     source: str = None
     destination: str = None
     present_value_date: date = None
@@ -31,20 +33,24 @@ class Transaction(InterestBaseModel):
         :return: value at requested date
         :rtype: float
         """
+        return_amount = 0.0
         if self.amount_remaining_balance:
             source_remaining_balance = self.source.f_balance
             if source_remaining_balance > 0.0:
-                return source_remaining_balance
-            else:
-                return 0.0
+                return_amount = source_remaining_balance
+        elif self.amount_above is not None:
+            float_threshold = float(self.amount_above)
+            if self.source.f_balance >= float_threshold:
+                return_amount = self.source.f_balance - float_threshold
         else:
-            return self.interest_rate.calculate_value(
+            return_amount = self.interest_rate.calculate_value(
                 float(self.amount),
                 self.present_value_date,
                 current_date,
             )
+        return return_amount
 
-    def setup(self, start_date: date, end_date: date, asset_dict: dict, interest_rates: dict):
+    def setup(self, start_date: date, end_date: date, asset_dict: dict, interest_rates: dict, date_dict: dict):
         """Setup defaults and linkages and check for correctness
 
         :param start_date: simulation start date
@@ -55,11 +61,9 @@ class Transaction(InterestBaseModel):
         :type asset_dict: dict
         :param interest_rates: dictionary by name of interest rates
         :type interest_rates: dict
+        :param date_dict: dictionary of special dates keyed by name
+        :type date_dict: dict
         """
-        if self.start is None:
-            self.start = start_date
-        if self.end is None:
-            self.end = end_date
         if self.present_value_date is None:
             self.present_value_date = start_date
         if self.source is not None:
@@ -73,6 +77,7 @@ class Transaction(InterestBaseModel):
             except KeyError:
                 raise(ValueError(f"Unknown destination ({self.destination}) on transaction {self.name}"))        
         self.get_interest_rate(interest_rates)
+        self.setup_dates(start_date, end_date, date_dict)
         self.check()
 
     def check(self):
@@ -81,6 +86,8 @@ class Transaction(InterestBaseModel):
         assert(self.source is not None or self.destination is not None), "Transactions must have at least a source or destination"
         if self.amount_remaining_balance:
             assert(self.source is not None), f"Transaction {self.name} cannot transfer remaining balance without a defined source"
+        if self.amount_above is not None:
+            assert(self.source is not None), f"Transaction {self.name} cannot transfer balance above threshold without a defined source"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date
@@ -91,19 +98,19 @@ class Transaction(InterestBaseModel):
         :rtype: bool
         """
         execute = False
-        if current_date >= self.start and current_date <= self.end:
+        if current_date >= self.start_date and current_date <= self.end_date:
             if self.frequency == FrequencyEnum.daily:
                 execute = True
             elif self.frequency == FrequencyEnum.yearly:
-                if current_date.day == self.start.day and current_date.month == self.start.month:
+                if current_date.day == self.start_date.day and current_date.month == self.start_date.month:
                     execute = True
             elif self.frequency == FrequencyEnum.monthly:
-                if current_date.day == self.start.day:
+                if current_date.day == self.start_date.day:
                     execute = True
             else:
                 if self.last_executed is None:
                     if self.frequency  == FrequencyEnum.biweekly:
-                        if current_date.day == self.start.day:
+                        if current_date.day == self.start_date.day:
                             execute = True
                 else:
                     if self.frequency == FrequencyEnum.biweekly:

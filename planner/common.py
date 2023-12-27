@@ -24,6 +24,36 @@ class InterestBaseModel(FinanceBaseModel):
             self.interest_rate = interest_rates[self.interest_rate]
         except KeyError:
             raise(ValueError(f"Appreciation rate for asset {self.name}: {self.interest_rate} does not exist!"))
+        
+class DateBaseModel(InterestBaseModel):
+    start_date: date = None
+    end_date: date = None
+    start: str = None
+    end: str = None
+
+    def setup_dates(self, start_date: date, end_date: date, date_dict: dict):
+        """ Setup date on object based on the multiple input types
+
+        :param start_date: simulation start date
+        :type start_date: date
+        :param end_date: simulation end date
+        :type end_date: date
+        :param date_dict: dictionary of special dates keyed by name
+        :type date_dict: dict
+
+        named start takes priority of start_date in inputs
+        Same for end
+        No dates will default to simulation start/end
+        """
+        if self.start is not None:
+            self.start_date = date_dict[self.start]
+        if self.end is not None:
+            self.end_date = date_dict[self.end]
+        if self.start_date is None:
+            self.start_date = start_date
+        if self.end_date is None:
+            self.end_date = end_date
+
 
 def round(value: Decimal) -> Decimal:
     """ Round Decimal values to 2 decimal places

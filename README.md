@@ -6,5 +6,4 @@ tracked as `float`s and actions are reported as rounded
 
 ## TODO
 
-1. Transaction - amount = full balance / above threshold
 2. Taxes
