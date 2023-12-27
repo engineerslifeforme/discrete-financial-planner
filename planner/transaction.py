@@ -10,9 +10,11 @@ class FrequencyEnum(StrEnum):
     monthly = "monthly"
     daily = "daily"
     biweekly = "biweekly"
+    yearly = "yearly"
 
 class Transaction(InterestBaseModel):
     amount: Decimal = ZERO
+    amount_remaining_balance: bool = False
     frequency: FrequencyEnum = FrequencyEnum.monthly
     start: date = None
     end: date = None
@@ -29,11 +31,18 @@ class Transaction(InterestBaseModel):
         :return: value at requested date
         :rtype: float
         """
-        return self.interest_rate.calculate_value(
-            float(self.amount),
-            self.present_value_date,
-            current_date,
-        )
+        if self.amount_remaining_balance:
+            source_remaining_balance = self.source.f_balance
+            if source_remaining_balance > 0.0:
+                return source_remaining_balance
+            else:
+                return 0.0
+        else:
+            return self.interest_rate.calculate_value(
+                float(self.amount),
+                self.present_value_date,
+                current_date,
+            )
 
     def setup(self, start_date: date, end_date: date, asset_dict: dict, interest_rates: dict):
         """Setup defaults and linkages and check for correctness
@@ -70,6 +79,8 @@ class Transaction(InterestBaseModel):
         """ Check the integrity of the Transaction definition
         """
         assert(self.source is not None or self.destination is not None), "Transactions must have at least a source or destination"
+        if self.amount_remaining_balance:
+            assert(self.source is not None), f"Transaction {self.name} cannot transfer remaining balance without a defined source"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date
@@ -81,26 +92,25 @@ class Transaction(InterestBaseModel):
         """
         execute = False
         if current_date >= self.start and current_date <= self.end:
-            if self.last_executed is None:
-                if self.frequency == FrequencyEnum.daily:
+            if self.frequency == FrequencyEnum.daily:
+                execute = True
+            elif self.frequency == FrequencyEnum.yearly:
+                if current_date.day == self.start.day and current_date.month == self.start.month:
                     execute = True
-                elif self.frequency in [FrequencyEnum.monthly, FrequencyEnum.biweekly]:
-                    if current_date.day == self.start.day:
-                        execute = True
+            elif self.frequency == FrequencyEnum.monthly:
+                if current_date.day == self.start.day:
+                    execute = True
             else:
-                if self.frequency == FrequencyEnum.daily:
-                    if current_date != self.last_executed:
-                        execute = True
-                elif self.frequency == FrequencyEnum.monthly:
-                    if (current_date.month != self.last_executed.month or \
-                        current_date.year != self.last_executed.year) and \
-                        current_date.day == self.last_executed.day:
-                        execute = True
-                elif self.frequency == FrequencyEnum.biweekly:
-                    if (current_date - self.last_executed).days == 14:
-                        execute = True
+                if self.last_executed is None:
+                    if self.frequency  == FrequencyEnum.biweekly:
+                        if current_date.day == self.start.day:
+                            execute = True
                 else:
-                    raise(ValueError(f"Unknown transaction frequency: {self.frequency}"))
+                    if self.frequency == FrequencyEnum.biweekly:
+                        if (current_date - self.last_executed).days == 14:
+                            execute = True
+                    else:
+                        raise(ValueError(f"Unknown transaction frequency: {self.frequency}"))
         if execute:
             self.last_executed = current_date
         return execute

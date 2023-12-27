@@ -29,7 +29,6 @@ class ActionLogger:
 class Simulation(BaseModel):
     start: date
     end: date
-    action_logs: List[dict] = [] # Private
     assets: List[Asset] = []
     interest_rates: List[InterestRate] = []
     transactions: List[Transaction] = []
@@ -81,11 +80,13 @@ class Simulation(BaseModel):
 
             for transaction in self.transactions:
                 if transaction.executable(current_date):
-                    if transaction.source is not None:
-                        _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
-                        action_logger.add_action_log(transaction_log)
+                    # Order is important here, change destination then source
+                    # transaction amount is sometimes based on source balance
                     if transaction.destination is not None:
                         _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
+                        action_logger.add_action_log(transaction_log)
+                    if transaction.source is not None:
+                        _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
                         action_logger.add_action_log(transaction_log)
             
             for asset in self.assets:

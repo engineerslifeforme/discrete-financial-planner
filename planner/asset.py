@@ -14,6 +14,7 @@ from planner.transaction import Transaction
 class Asset(InterestBaseModel):
     balance: Decimal = ZERO
     f_balance: float = 0.0
+    allow_negative_balance: bool = False
 
     def __init__(self, *args, **kwargs):
         """ Asset initialization
@@ -84,6 +85,8 @@ class Asset(InterestBaseModel):
         else:
             amount = -1.0 * transaction.get_amount(current_date)
         self.f_balance += amount
+        if not self.allow_negative_balance:
+            assert(self.f_balance >= 0.0), f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"
         log = create_value_change_log(
             "Asset Transaction",
             transaction.name,
