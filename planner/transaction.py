@@ -14,6 +14,7 @@ class FrequencyEnum(StrEnum):
     daily = "daily"
     biweekly = "biweekly"
     yearly = "yearly"
+    weekly = "weekly"
 
 class Transaction(DateBaseModel):
     amount: Decimal = ZERO
@@ -122,12 +123,15 @@ class Transaction(DateBaseModel):
                     execute = True
             else:
                 if self.last_executed is None:
-                    if self.frequency  == FrequencyEnum.biweekly:
+                    if self.frequency in [FrequencyEnum.biweekly, FrequencyEnum.weekly]:
                         if current_date.day == self.start_date.day:
                             execute = True
                 else:
                     if self.frequency == FrequencyEnum.biweekly:
                         if (current_date - self.last_executed).days == 14:
+                            execute = True
+                    elif self.frequency == FrequencyEnum.weekly:
+                        if (current_date - self.last_executed).days == 7:
                             execute = True
                     else:
                         raise(ValueError(f"Unknown transaction frequency: {self.frequency}"))
