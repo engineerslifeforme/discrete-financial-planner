@@ -6,4 +6,5 @@ tracked as `float`s and actions are reported as rounded
 
 ## TODO
 
+1. Mortgage extra principal
 2. Taxes

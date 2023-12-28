@@ -81,9 +81,9 @@ class Asset(InterestBaseModel):
         :rtype: tuple
         """
         if deposit:
-            amount = transaction.get_amount(current_date)
+            amount = transaction.get_amount(current_date, deposit)
         else:
-            amount = -1.0 * transaction.get_amount(current_date)
+            amount = -1.0 * transaction.get_amount(current_date, deposit)
         self.f_balance += amount
         if not self.allow_negative_balance:
             assert(self.f_balance >= 0.0), f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"

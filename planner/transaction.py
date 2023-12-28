@@ -26,11 +26,13 @@ class Transaction(DateBaseModel):
     amount_required: bool = True
     last_executed: date = None # Private
 
-    def get_amount(self, current_date: date) -> float:
+    def get_amount(self, current_date: date, deposit: bool) -> float:
         """ Get transaction amount at current point in time
 
         :param current_date: date to assess amount
         :type current_date: date
+        :param deposit: whether the transaction is a deposit (true) or withdrawal (false)
+        :type deposit: bool
         :return: value at requested date
         :rtype: float
         """
@@ -52,7 +54,7 @@ class Transaction(DateBaseModel):
         if self.source is not None:
             if return_amount > self.source.f_balance:
                 if self.amount_required:
-                    raise(ValueError(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) from source {self.source.name}"))
+                    raise(ValueError(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) on {current_date} from source {self.source.name}"))
                 else:
                     return self.source.f_balance
         return return_amount
