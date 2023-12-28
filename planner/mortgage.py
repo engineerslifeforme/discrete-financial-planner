@@ -9,6 +9,7 @@ class Mortgage(Transaction):
     loan_amount: Decimal
     loan_rate: float
     term_months: int
+    extra_principal: Decimal = ZERO
 
     @property
     def loan_rate_month(self):
@@ -37,6 +38,7 @@ class Mortgage(Transaction):
         numerator = self.loan_rate_month * term_exponential
         denominator = term_exponential - 1
         payment = float(self.loan_amount) * (numerator / denominator)
+        payment += float(self.extra_principal)
         payment_interest = float(abs(self.destination.f_balance)) * self.loan_rate_month
         payment_principal = payment - payment_interest
         # Pay against debt/mortgage

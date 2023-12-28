@@ -20,10 +20,12 @@ class Transaction(DateBaseModel):
     amount_remaining_balance: bool = False
     amount_above: Decimal = None
     frequency: FrequencyEnum = FrequencyEnum.monthly
+    frequency_periods: int = 1
     source: str = None
     destination: str = None
     present_value_date: date = None
     amount_required: bool = True
+    period_counter: int = 0 # Private
     last_executed: date = None # Private
 
     def get_amount(self, current_date: date, deposit: bool) -> float:
@@ -85,6 +87,8 @@ class Transaction(DateBaseModel):
                 self.destination = asset_dict[self.destination]
             except KeyError:
                 raise(ValueError(f"Unknown destination ({self.destination}) on transaction {self.name}"))        
+        # will cause transaction to happen on first valid date
+        self.period_counter = self.frequency_periods
         self.get_interest_rate(interest_rates)
         self.setup_dates(start_date, end_date, date_dict)
         self.check()
@@ -127,6 +131,12 @@ class Transaction(DateBaseModel):
                             execute = True
                     else:
                         raise(ValueError(f"Unknown transaction frequency: {self.frequency}"))
+        if execute:
+            self.period_counter += 1
+            if self.period_counter >= self.frequency_periods:
+                self.period_counter = 0
+            else:
+                execute = False
         if execute:
             self.last_executed = current_date
         return execute
