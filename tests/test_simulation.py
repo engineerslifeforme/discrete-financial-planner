@@ -20,6 +20,11 @@ interest_rates:
 assets:
     - name: Bank
       balance: {BALANCE}
+transactions:
+    - name: Bank Interest
+      destination: Bank
+      frequency: daily
+      asset_maturity: True
       interest_rate: example
 """))
 

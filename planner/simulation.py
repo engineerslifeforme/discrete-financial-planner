@@ -28,6 +28,13 @@ class ActionLogger:
         self.action_logs.append(action_log)
 
 def combine_configs(config_list: list) -> dict:
+    """ Combines multiple potentially subset dicts to a single
+
+    :param config_list: multiple subset dictionaries
+    :type config_list: list
+    :return: single combined dictionary of data
+    :rtype: dict
+    """
     simple_keys = ["start", "end"]
     list_keys = [
         "transactions",
@@ -80,8 +87,8 @@ class Simulation(BaseModel):
         # Setup defualt 0 interest rate
         self.interest_rates.append(InterestRate(name=DEFAULT_INTEREST))
         interest_rate_dict = {i.name: i for i in self.interest_rates}
-        for asset in self.assets:
-            asset.get_interest_rate(interest_rate_dict)
+        # for asset in self.assets:
+        #     asset.get_interest_rate(interest_rate_dict)
         asset_dict = {a.name: a for a in self.assets}
         for transaction in self.transactions:
             transaction.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
@@ -143,9 +150,9 @@ class Simulation(BaseModel):
                         break
             
             for asset in self.assets:
-                _, _, maturity_log = asset.mature()
-                maturity_log["date"] = current_date
-                action_logger.add_action_log(maturity_log)
+                # _, _, maturity_log = asset.mature()
+                # maturity_log["date"] = current_date
+                # action_logger.add_action_log(maturity_log)
                 if last_day_of_month:                    
                     asset_states.append(asset.get_state(current_date))
             

@@ -6,12 +6,12 @@ from pydantic import BaseModel
 from planner.common import (
     ZERO, 
     round, 
-    InterestBaseModel,
     create_value_change_log,
 )
 from planner.transaction import Transaction
 
-class Asset(InterestBaseModel):
+class Asset(BaseModel):
+    name: str
     balance: Decimal = ZERO
     f_balance: float = 0.0
     allow_negative_balance: bool = False
@@ -52,7 +52,10 @@ class Asset(InterestBaseModel):
         The running balance is really tracked as a float
         but this allows a friendly value to be provided
         """
-        return round(Decimal(self.f_balance))
+        try:
+            return round(Decimal(self.f_balance))
+        except:
+            print("here")
     
     def get_state(self, date: date) -> dict:
         """ Get representation of state for logging

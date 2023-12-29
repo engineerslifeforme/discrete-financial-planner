@@ -26,6 +26,7 @@ class Transaction(DateBaseModel):
     frequency: FrequencyEnum = FrequencyEnum.monthly
     frequency_periods: int = 1
     source: str = None
+    asset_maturity: bool = False
     destination: str = None
     present_value_date: date = None
     amount_required: bool = True
@@ -51,6 +52,13 @@ class Transaction(DateBaseModel):
             float_threshold = float(self.amount_above)
             if self.source.f_balance >= float_threshold:
                 return_amount = self.source.f_balance - float_threshold
+        elif self.asset_maturity:
+            return_amount = self.interest_rate.calculate_value(
+                float(self.destination.f_balance),
+                self.present_value_date,
+                current_date,
+            ) - self.destination.f_balance
+            self.present_value_date = current_date
         else:
             return_amount = self.interest_rate.calculate_value(
                 float(self.amount),
@@ -105,6 +113,8 @@ class Transaction(DateBaseModel):
             assert(self.source is not None), f"Transaction {self.name} cannot transfer remaining balance without a defined source"
         if self.amount_above is not None:
             assert(self.source is not None), f"Transaction {self.name} cannot transfer balance above threshold without a defined source"
+        if self.asset_maturity:
+            assert(self.destination is not None), f"Asset Maturity transaction ({self.name}) must have a valid destination"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date
