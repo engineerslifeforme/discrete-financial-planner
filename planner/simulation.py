@@ -7,7 +7,7 @@ from typing import List, Dict
 from planner.asset import Asset
 from planner.interest_rate import InterestRate
 from planner.common import DEFAULT_INTEREST, ZERO
-from planner.transaction import Transaction
+from planner.transaction import Transaction, InsufficientBalanceException
 from planner.mortgage import Mortgage
 
 class ActionLogger:
@@ -26,6 +26,35 @@ class ActionLogger:
         if action_log["amount"] == ZERO:
             return
         self.action_logs.append(action_log)
+
+def combine_configs(config_list: list) -> dict:
+    simple_keys = ["start", "end"]
+    list_keys = [
+        "transactions",
+        "mortgages",
+        "interest_rates",
+        "assets",
+    ]
+    skeleton = {k: [] for k in list_keys}
+    skeleton["dates"] = {}
+    for s in simple_keys:
+        skeleton[s] = None
+    for c in config_list:
+        try:
+            skeleton["dates"].update(c["dates"])
+        except KeyError:
+            pass
+        for s in simple_keys:
+            try:
+                skeleton[s] = c[s]
+            except KeyError:
+                pass
+        for l in list_keys:
+            try:
+                skeleton[l].extend(c[l])
+            except KeyError:
+                pass
+    return skeleton
 
 class Simulation(BaseModel):
     start: date
@@ -78,7 +107,8 @@ class Simulation(BaseModel):
         days = 0
         asset_states = []
         action_logger = ActionLogger()
-        while current_date <= self.end:
+        error_raised = None
+        while current_date <= self.end and error_raised is None:
             next_date = current_date + relativedelta(days=1)
             last_day_of_month = False
             if next_date.month != current_month:
@@ -88,21 +118,29 @@ class Simulation(BaseModel):
                 if transaction.executable(current_date):
                     # Order is important here, change destination then source
                     # transaction amount is sometimes based on source balance
-                    if transaction.destination is not None:
-                        _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
-                        action_logger.add_action_log(transaction_log)
-                    if transaction.source is not None:
-                        _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
-                        action_logger.add_action_log(transaction_log)
+                    try:
+                        if transaction.destination is not None:
+                            _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
+                            action_logger.add_action_log(transaction_log)
+                        if transaction.source is not None:
+                            _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
+                            action_logger.add_action_log(transaction_log)
+                    except InsufficientBalanceException as e:
+                        error_raised = e
+                        break
             
             for mortgage in self.mortgages:
                 if mortgage.executable(current_date):
                     # Order is important here, change source then destination
                     # mortgage amount based on remaining balance of debt, so change debt second
-                    _, mortgage_log = mortgage.source.execute_transaction(mortgage, False, current_date)
-                    action_logger.add_action_log(mortgage_log)
-                    _, mortgage_log = mortgage.destination.execute_transaction(mortgage, True, current_date)
-                    action_logger.add_action_log(mortgage_log)
+                    try:
+                        _, mortgage_log = mortgage.source.execute_transaction(mortgage, False, current_date)
+                        action_logger.add_action_log(mortgage_log)
+                        _, mortgage_log = mortgage.destination.execute_transaction(mortgage, True, current_date)
+                        action_logger.add_action_log(mortgage_log)
+                    except InsufficientBalanceException as e:
+                        error_raised = e
+                        break
             
             for asset in self.assets:
                 _, _, maturity_log = asset.mature()
@@ -114,4 +152,8 @@ class Simulation(BaseModel):
             current_date = next_date
             current_month = current_date.month            
             days += 1
+
+        if error_raised is not None:
+            print("Simulation was unable to complete due to error:")
+            print(error_raised)
         return days, asset_states, action_logger.action_logs

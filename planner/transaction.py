@@ -9,6 +9,9 @@ from planner.common import (
     DateBaseModel,
 )
 
+class InsufficientBalanceException(Exception):
+    pass
+
 class FrequencyEnum(StrEnum):
     monthly = "monthly"
     daily = "daily"
@@ -57,7 +60,7 @@ class Transaction(DateBaseModel):
         if self.source is not None:
             if return_amount > self.source.f_balance:
                 if self.amount_required:
-                    raise(ValueError(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) on {current_date} from source {self.source.name}"))
+                    raise(InsufficientBalanceException(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) on {current_date} from source {self.source.name}"))
                 else:
                     return self.source.f_balance
         return return_amount
