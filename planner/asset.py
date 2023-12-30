@@ -97,4 +97,4 @@ class Asset(BaseModel):
             self.name,
             action_date = current_date,
         )
-        return self.balance, log
+        return self.balance, amount, log

@@ -115,22 +115,27 @@ class Simulation(BaseModel):
         asset_states = []
         action_logger = ActionLogger()
         error_raised = None
+        taxable_income = {}
+        taxable_income[current_date.year] = 0.0
         while current_date <= self.end and error_raised is None:
             next_date = current_date + relativedelta(days=1)
             last_day_of_month = False
             if next_date.month != current_month:
                 last_day_of_month = True
-
+            if next_date.year != current_date.year:
+                taxable_income[next_date.year] = 0.0
             for transaction in self.transactions:
                 if transaction.executable(current_date):
                     # Order is important here, change destination then source
                     # transaction amount is sometimes based on source balance
                     try:
                         if transaction.destination is not None:
-                            _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
+                            _, transaction_amount, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
                             action_logger.add_action_log(transaction_log)
+                            if transaction.income_taxable:
+                                taxable_income[next_date.year] += transaction_amount
                         if transaction.source is not None:
-                            _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
+                            _, transaction_amount, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
                             action_logger.add_action_log(transaction_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
@@ -141,9 +146,9 @@ class Simulation(BaseModel):
                     # Order is important here, change source then destination
                     # mortgage amount based on remaining balance of debt, so change debt second
                     try:
-                        _, mortgage_log = mortgage.source.execute_transaction(mortgage, False, current_date)
+                        _, _, mortgage_log = mortgage.source.execute_transaction(mortgage, False, current_date)
                         action_logger.add_action_log(mortgage_log)
-                        _, mortgage_log = mortgage.destination.execute_transaction(mortgage, True, current_date)
+                        _, _, mortgage_log = mortgage.destination.execute_transaction(mortgage, True, current_date)
                         action_logger.add_action_log(mortgage_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
@@ -163,4 +168,4 @@ class Simulation(BaseModel):
         if error_raised is not None:
             print("Simulation was unable to complete due to error:")
             print(error_raised)
-        return days, asset_states, action_logger.action_logs
+        return days, asset_states, action_logger.action_logs, taxable_income

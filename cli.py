@@ -2,11 +2,13 @@ import argparse
 import datetime
 from dateutil.relativedelta import relativedelta 
 from pathlib import Path
+from decimal import Decimal
 
 import yaml
 import pandas as pd
 
 from planner import Simulation, combine_configs
+from planner.common import round
 
 def cli():
     parser = argparse.ArgumentParser()
@@ -63,9 +65,12 @@ def main(configuration_paths: list, list_path: Path, start: datetime.date = None
     else:
         configuration["end"] = end
     simulation = Simulation(**configuration)
-    _, asset_states, action_logs = simulation.run()
+    _, asset_states, action_logs, taxable_income = simulation.run()
     pd.DataFrame(asset_states).to_csv("output.csv", index=False)
     pd.DataFrame(action_logs).to_csv("changes.csv", index=False)
+    pd.DataFrame(
+        [{"year": k, "amount": round(Decimal(taxable_income[k]))} for k in taxable_income]
+    ).to_csv("yearly_taxable_income.csv", index=False)
 
 def valid_date(s):
     try:

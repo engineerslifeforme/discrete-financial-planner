@@ -30,6 +30,7 @@ class Transaction(DateBaseModel):
     destination: str = None
     present_value_date: date = None
     amount_required: bool = True
+    income_taxable: bool = False
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 
