@@ -7,5 +7,4 @@ tracked as `float`s and actions are reported as rounded
 ## TODO
 
 1. Taxes
-2. numba the primary calculations
 3. tithe % take home
