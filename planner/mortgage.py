@@ -15,6 +15,10 @@ class Mortgage(Transaction):
     def loan_rate_month(self):
         return self.loan_rate / 100.0 / 12.0
     
+    @property
+    def payment_interest(self):
+        return float(abs(self.destination.f_balance)) * self.loan_rate_month
+    
     def check(self):
         """ Assure the mortgage is configured correctly
         """
@@ -39,8 +43,7 @@ class Mortgage(Transaction):
         denominator = term_exponential - 1
         payment = float(self.loan_amount) * (numerator / denominator)
         payment += float(self.extra_principal)
-        payment_interest = float(abs(self.destination.f_balance)) * self.loan_rate_month
-        payment_principal = payment - payment_interest
+        payment_principal = payment - self.payment_interest
         # Pay against debt/mortgage
         closeout = False
         if abs(self.destination.f_balance) < payment_principal:
@@ -52,7 +55,7 @@ class Mortgage(Transaction):
                 return_amount = payment_principal
         else:
             if closeout:
-                return_amount = payment_interest + abs(self.destination.f_balance)
+                return_amount = self.payment_interest + abs(self.destination.f_balance)
             else:
                 return_amount = payment
         return return_amount

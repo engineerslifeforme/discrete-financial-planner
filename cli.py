@@ -65,12 +65,11 @@ def main(configuration_paths: list, list_path: Path, start: datetime.date = None
     else:
         configuration["end"] = end
     simulation = Simulation(**configuration)
-    _, asset_states, action_logs, taxable_income = simulation.run()
+    _, asset_states, action_logs, tax_data = simulation.run()
     pd.DataFrame(asset_states).to_csv("output.csv", index=False)
     pd.DataFrame(action_logs).to_csv("changes.csv", index=False)
-    pd.DataFrame(
-        [{"year": k, "amount": round(Decimal(taxable_income[k]))} for k in taxable_income]
-    ).to_csv("yearly_taxable_income.csv", index=False)
+    if tax_data is not None:
+        pd.DataFrame(tax_data).to_csv("yearly_taxes.csv", index=False)
 
 def valid_date(s):
     try:

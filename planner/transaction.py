@@ -31,6 +31,8 @@ class Transaction(DateBaseModel):
     present_value_date: date = None
     amount_required: bool = True
     income_taxable: bool = False
+    income_tax_payment: bool = False
+    tax_deductable: bool = False
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 

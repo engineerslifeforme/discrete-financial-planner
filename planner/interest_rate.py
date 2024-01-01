@@ -29,8 +29,11 @@ class InterestRate(BaseModel):
         :return: future value at requested date
         :rtype: float
         """
-        return future_value(
-            present_value, 
-            self.daily_rate, 
-            (future_date - present_date).days,
-        )
+        if self.rate == 0.0:
+            return present_value
+        else:
+            return future_value(
+                present_value, 
+                self.daily_rate, 
+                (future_date - present_date).days,
+            )
