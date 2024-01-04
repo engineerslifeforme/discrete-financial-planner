@@ -7,10 +7,8 @@ from pydantic import BaseModel
 from planner.common import (
     ZERO, 
     DateBaseModel,
+    InsufficientBalanceException,
 )
-
-class InsufficientBalanceException(Exception):
-    pass
 
 class FrequencyEnum(StrEnum):
     monthly = "monthly"
@@ -31,8 +29,10 @@ class Transaction(DateBaseModel):
     present_value_date: date = None
     amount_required: bool = True
     income_taxable: bool = False
-    income_tax_payment: bool = False
-    tax_deductable: bool = False
+    fed_income_tax_payment: bool = False
+    state_income_tax_payment: bool = False
+    fed_tax_deductable: bool = False
+    state_tax_deductable: bool = False
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 
@@ -118,6 +118,9 @@ class Transaction(DateBaseModel):
             assert(self.source is not None), f"Transaction {self.name} cannot transfer balance above threshold without a defined source"
         if self.asset_maturity:
             assert(self.destination is not None), f"Asset Maturity transaction ({self.name}) must have a valid destination"
+        assert(not (self.fed_income_tax_payment and self.state_income_tax_payment)), f"Transaction {self.name} cannot be both a payment for state AND federal income taxes"
+        if self.fed_income_tax_payment or self.state_income_tax_payment:
+            assert(self.destination is None), f"Transaction {self.name} is a tax payment and therefore cannot have a destiation"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date
@@ -160,4 +163,20 @@ class Transaction(DateBaseModel):
         if execute:
             self.last_executed = current_date
         return execute
+    
+    def to_dict(self) -> dict:
+        """ Capturing static data
+
+        :return: dictionary of some static data
+        :rtype: dict
+        """
+        return {
+            "transaction_name": self.name,
+            "asset_maturity": self.asset_maturity,
+            "income_taxable": self.income_taxable,
+            "fed_income_tax_payment": self.fed_income_tax_payment,
+            "state_income_tax_payment": self.state_income_tax_payment,
+            "fed_tax_deductable": self.fed_tax_deductable,
+            "state_tax_deductable": self.state_tax_deductable,
+        }
 

@@ -6,9 +6,10 @@ from pydantic import BaseModel
 from planner.common import (
     ZERO, 
     round, 
-    create_value_change_log,
+    InsufficientBalanceException,
 )
 from planner.transaction import Transaction
+from planner.action_log import ActionLog
 
 class Asset(BaseModel):
     name: str
@@ -26,22 +27,6 @@ class Asset(BaseModel):
         super().__init__(*args, **kwargs)
         self.f_balance = float(kwargs.get("balance", ZERO))
 
-    def mature(self) -> tuple:
-        """Mature 1 day
-
-        :return: tuple of new balance, balance change, change log
-        :rtype: tuple
-        """
-        change = self.interest_rate.daily_rate * self.f_balance
-        self.f_balance += change
-        log = create_value_change_log(
-            "Asset Maturity",
-            "1 Day",
-            round(Decimal(change)),
-            changed_item= self.name,
-        )
-        return self.f_balance, change, log
-    
     @property
     def balance(self) -> Decimal:
         """ Provide the running balance as Decimal
@@ -89,12 +74,13 @@ class Asset(BaseModel):
             amount = -1.0 * transaction.get_amount(current_date, deposit)
         self.f_balance += amount
         if not self.allow_negative_balance:
-            assert(self.f_balance >= 0.0), f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"
-        log = create_value_change_log(
-            "Asset Transaction",
-            transaction.name,
-            round(Decimal(amount)),
-            self.name,
-            action_date = current_date,
+            if self.f_balance < 0.0:
+                raise(InsufficientBalanceException(f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"))
+        log = ActionLog(
+            action_type="Asset Transaction",
+            transaction=transaction,
+            amount=round(Decimal(amount)),
+            changed_item=self.name,
+            date = current_date,
         )
         return self.balance, amount, log

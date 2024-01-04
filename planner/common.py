@@ -8,6 +8,9 @@ ZERO = Decimal("0.00")
 
 DEFAULT_INTEREST = "Default_Interest"
 
+class InsufficientBalanceException(Exception):
+    pass
+
 class FinanceBaseModel(BaseModel):
     name: str
 
@@ -81,11 +84,3 @@ def future_value(present_value: float, interest: float, periods: int) -> float:
     """
     return present_value*math.pow((1+interest), periods)
 
-def create_value_change_log(action_type: str, action_name: str, amount: Decimal, changed_item: str, action_date: date = None) -> dict:
-    return {
-        "date": action_date,
-        "action_type": action_type,
-        "action_name": action_name,
-        "amount": amount,
-        "changed_item": changed_item,
-    }

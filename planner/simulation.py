@@ -9,26 +9,45 @@ from planner.interest_rate import InterestRate
 from planner.common import DEFAULT_INTEREST, ZERO
 from planner.transaction import Transaction, InsufficientBalanceException
 from planner.mortgage import Mortgage
-from planner.federal_income_taxes import FederalIncomeTaxCaculator
+from planner.income_taxes import IncomeTaxCaculator
+from planner.action_log import ActionLog
 
 ZERO_INTEREST_RATE = InterestRate(name=DEFAULT_INTEREST)
 
 class ActionLogger:
 
     def __init__(self):
-        self.action_logs = []
+        self.action_logs = {}
+        self.year = None
 
-    def add_action_log(self, action_log: dict):
+    def set_year(self, year: int):
+        """ set year on logger
+
+        :param year: year of action(s)
+        :type year: int
+        """
+        self.year = year
+        self.action_logs[self.year] = []
+
+    def add_action_log(self, action_log: ActionLog):
         """ Assess and add action log to list if good
 
         :param action_log: action log dictionary
-        :type action_log: dict
+        :type action_log: ActionLog
 
         We don't want $0.00 actions
         """
-        if action_log["amount"] == ZERO:
+        if action_log.amount == ZERO:
             return
-        self.action_logs.append(action_log)
+        self.action_logs[self.year].append(action_log)
+
+    def flatten_logs(self) -> list:
+        sorted_years = list(self.action_logs.keys())
+        sorted_years.sort()
+        flat_list = []
+        for key in sorted_years:
+            flat_list.extend(self.action_logs[key])
+        return flat_list
 
 def combine_configs(config_list: list) -> dict:
     """ Combines multiple potentially subset dicts to a single
@@ -55,6 +74,10 @@ def combine_configs(config_list: list) -> dict:
         except KeyError:
             pass
         try:
+            skeleton["state_income_taxes"] = c["state_income_taxes"]
+        except KeyError:
+            pass
+        try:
             skeleton["dates"].update(c["dates"])
         except KeyError:
             pass
@@ -78,7 +101,8 @@ class Simulation(BaseModel):
     transactions: List[Transaction] = []
     dates: Dict[str, date] = {}
     mortgages: List[Mortgage] = []
-    federal_income_taxes: FederalIncomeTaxCaculator = None
+    federal_income_taxes: IncomeTaxCaculator = None
+    state_income_taxes: IncomeTaxCaculator = None
 
     def __init__(self, *args, **kwargs):
         """Initialization with setup
@@ -104,6 +128,8 @@ class Simulation(BaseModel):
             mortgage.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
         if self.federal_income_taxes is not None:
             self.federal_income_taxes.setup(asset_dict)        
+        if self.state_income_taxes is not None:
+            self.state_income_taxes.setup(asset_dict)        
 
     def run(self) -> tuple:
         """ Run simulation from start to end
@@ -124,9 +150,9 @@ class Simulation(BaseModel):
         days = 0
         asset_states = []
         action_logger = ActionLogger()
+        action_logger.set_year(current_date.year)
         error_raised = None
-        if self.federal_income_taxes is not None:
-            self.federal_income_taxes.new_year(current_date.year)
+        mortgage_interest = 0.0
         while current_date <= self.end and error_raised is None:
             next_date = current_date + relativedelta(days=1)
             last_day_of_month = False
@@ -134,8 +160,6 @@ class Simulation(BaseModel):
             if next_date.month != current_month:
                 last_day_of_month = True
             if next_date.year != current_date.year:
-                if self.federal_income_taxes is not None:
-                    self.federal_income_taxes.new_year(next_date.year)
                 year_ended = True
             for transaction in self.transactions:
                 if transaction.executable(current_date):
@@ -143,18 +167,11 @@ class Simulation(BaseModel):
                     # transaction amount is sometimes based on source balance
                     try:
                         if transaction.destination is not None:
-                            _, transaction_amount, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
+                            _, _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
                             action_logger.add_action_log(transaction_log)
-                            if transaction.income_taxable and self.federal_income_taxes is not None:
-                                self.federal_income_taxes.update_taxable_income(current_date.year, transaction_amount)
                         if transaction.source is not None:
-                            _, transaction_amount, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
+                            _, _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
                             action_logger.add_action_log(transaction_log)
-                            if self.federal_income_taxes is not None:
-                                if transaction.income_tax_payment:
-                                    self.federal_income_taxes.update_taxes_paid(current_date.year, transaction_amount)
-                                if transaction.tax_deductable:
-                                    self.federal_income_taxes.update_deductions(current_date.year, abs(transaction_amount))
                     except InsufficientBalanceException as e:
                         error_raised = e
                         break
@@ -164,8 +181,7 @@ class Simulation(BaseModel):
                     # Order is important here, change source then destination
                     # mortgage amount based on remaining balance of debt, so change debt second
                     try:
-                        if self.federal_income_taxes is not None:
-                            self.federal_income_taxes.update_deductions(current_date.year, mortgage.payment_interest)
+                        mortgage_interest += mortgage.payment_interest
                         _, _, mortgage_log = mortgage.source.execute_transaction(mortgage, False, current_date)
                         action_logger.add_action_log(mortgage_log)
                         _, _, mortgage_log = mortgage.destination.execute_transaction(mortgage, True, current_date)
@@ -176,7 +192,12 @@ class Simulation(BaseModel):
             
             if year_ended:
                 if self.federal_income_taxes is not None:
-                    tax_transaction, deposit = self.federal_income_taxes.calculate_taxes(current_date.year)
+                    tax_transaction, deposit = self.federal_income_taxes.calculate_taxes(
+                        action_logger.action_logs[current_date.year], 
+                        current_date.year,
+                        True,
+                        mortgage_interest,
+                    )
                     # Pydantic won't allow direct assignment
                     # the way the delayed assignment is handled
                     tax_transaction.interest_rate = ZERO_INTEREST_RATE
@@ -186,6 +207,24 @@ class Simulation(BaseModel):
                     except InsufficientBalanceException as e:
                         error_raised = e
                         break
+                if self.state_income_taxes is not None:
+                    tax_transaction, deposit = self.state_income_taxes.calculate_taxes(
+                        action_logger.action_logs[current_date.year],
+                        current_date.year,
+                        False,
+                        mortgage_interest,
+                    )
+                    # Pydantic won't allow direct assignment
+                    # the way the delayed assignment is handled
+                    tax_transaction.interest_rate = ZERO_INTEREST_RATE
+                    try:
+                        _, _, transaction_log = tax_transaction.source.execute_transaction(tax_transaction, deposit, current_date)
+                        action_logger.add_action_log(transaction_log)
+                    except InsufficientBalanceException as e:
+                        error_raised = e
+                        break
+                action_logger.set_year(next_date.year)
+                mortgage_interest = 0.0
             
             for asset in self.assets:
                 if last_day_of_month:                    
@@ -199,7 +238,11 @@ class Simulation(BaseModel):
             print("Simulation was unable to complete due to error:")
             print(error_raised)
         if self.federal_income_taxes is not None:
-            tax_data = self.federal_income_taxes.summarize()
+            fed_tax_data = self.federal_income_taxes.summarize()
         else:
-            tax_data = None
-        return days, asset_states, action_logger.action_logs, tax_data
+            fed_tax_data = None
+        if self.state_income_taxes is not None:
+            state_tax_data = self.state_income_taxes.summarize()
+        else:
+            state_tax_data = None
+        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data

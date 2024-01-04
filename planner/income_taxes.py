@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Tuple
 
 from planner.transaction import Transaction
-from planner.common import round
+from planner.common import round, ZERO
 from planner.tax_deduction import TaxDeduction
 
 # The top tax rate remains 37% in 2024.
@@ -26,19 +26,24 @@ TAX_BRACKETS = [
     {"bottom_of_range": 609350.0, "rate": 0.37},
 ]
 
-class FederalIncomeTaxCaculator(BaseModel):
+class YearSummary(BaseModel):
+    year: int
+    taxable_income: Decimal
+    deductions: Decimal
+    income_post_deductions: Decimal
+    taxes_owed_pre_credits: Decimal
+    credits: Decimal
+    taxes_prepaid: Decimal
+    tax_bill: Decimal
+    max_rate: float
+    balance_at_max_rate: Decimal
+
+class IncomeTaxCaculator(BaseModel):
     source: str
     deductions: List[TaxDeduction] = []
     credits: List[TaxDeduction] = []
     tax_brackets: List[Dict[str, float]] = TAX_BRACKETS
-    yearly_taxable_income: Dict[int, float] = {} # Private
-    yearly_taxes_prepaid: Dict[int, float] = {} # Private
-    yearly_taxes_owed: Dict[int, float] = {} # Private
-    yearly_tax_bill: Dict[int, float] = {} # Private
-    taxed_amounts: List[Tuple[float, float]] = [] # Private
-    full_amounts: List[float] = [] # Private
-    yearly_deductions: Dict[int, float] = {} # Private
-    yearly_credits: Dict[int, float] = {} # Private
+    summaries: List[YearSummary] = [] # Private
 
     def new_year(self, year: int):
         """Initializes a new year tracking
@@ -89,21 +94,21 @@ class FederalIncomeTaxCaculator(BaseModel):
         :param asset_dict: dictionary of names to asset objects
         :type asset_dict: dict
         """
-        self.taxed_amounts = self.build_rates_list()
-        self.full_amounts = self.build_full_bracket_amounts()
         try:
             self.source = asset_dict[self.source]
         except KeyError:
             raise(ValueError(f"Unknown source ({self.source}) on Federal Income Taxes"))
 
-    def build_full_bracket_amounts(self) -> list:
-        """ Build list of tax cost per full bracket
+    def build_full_bracket_amounts(self, taxed_amounts: list) -> list:
+        """Build list of tax cost per full bracket
 
+        :param taxed_amounts: ordered list of tax amounts with rate
+        :type taxed_amounts: list
         :return: list of the full cost of each bracket
         :rtype: list
         """
         full_amounts = []
-        for bracket_size, bracket_rate in self.taxed_amounts:
+        for bracket_size, bracket_rate in taxed_amounts:
             full_amounts.append(bracket_size * bracket_rate)
         return full_amounts
     
@@ -121,40 +126,79 @@ class FederalIncomeTaxCaculator(BaseModel):
                 taxed_amounts.append((100000000000.0, bracket["rate"]))
         return taxed_amounts
 
-    def calculate_taxes(self, year: int) -> Transaction:        
+    def calculate_taxes(self, action_logs: list, year: int, federal: bool, mortgage_interest: float) -> Transaction:        
         """Calculate taxes owed on income
 
-        :return: taxes owed based on income
-        :rtype: float
+        :param action_logs: transactions for the year
+        :type action_logs: list
+        :param year: year of taxes and actions
+        :type year: int
+        :param federal: is federal taxes, True = Yes, False = State
+        :type federal: bool
+        :return: a transaction for taxes owed (or refunded)
+        :rtype: Transaction
         """
-        balance = self.yearly_taxable_income[year]
+        taxable_income = sum([a.amount for a in action_logs if a.transaction.income_taxable and a.amount > ZERO])
+        balance = float(taxable_income)
+        # TODO: This do not account for mortgages
+        if federal:
+            deductions = sum([a.amount for a in action_logs if a.transaction.fed_tax_deductable])
+        else: # state
+            deductions = sum([a.amount for a in action_logs if a.transaction.state_tax_deductable])
+        deductions -= round(Decimal(sum([d.get_amount(year) for d in self.deductions if d.executable(year)])))
+        # This is technically not good, losing some precision I htink
+        deductions -= round(Decimal(mortgage_interest))
+        balance += float(deductions)
+        income_post_deductions = round(Decimal(balance))
+        taxed_amounts = self.build_rates_list()
+        full_amounts = self.build_full_bracket_amounts(taxed_amounts)
         taxes_owed = 0.0
-        bracket_index = 0
-        for deduction in self.deductions:
-            if deduction.executable(year):
-                self.yearly_deductions[year] += deduction.get_amount(year)
-        balance -= self.yearly_deductions[year]
+        bracket_index = 0        
         while balance > 0.0:
-            if balance > self.taxed_amounts[bracket_index][0]:
-                taxes_owed += self.full_amounts[bracket_index]
-                balance -= self.taxed_amounts[bracket_index][0]
+            # Use later to capture how much money was in the highest bracket
+            entering_balance = balance
+            bracket_quantity, bracket_rate = taxed_amounts[bracket_index]
+            if balance > bracket_quantity:
+                taxes_owed += full_amounts[bracket_index]
+                balance -= bracket_quantity
             else:
-                taxes_owed += balance * self.taxed_amounts[bracket_index][1]
+                taxes_owed += balance * bracket_rate
                 balance -= balance
             bracket_index += 1
-        self.yearly_taxes_owed[year] = taxes_owed
-        taxes_owed = taxes_owed + self.yearly_taxes_prepaid[year]
-        for credit in self.credits:
-            if credit.executable(year):
-                self.yearly_credits[year] += credit.get_amount(year)
-        taxes_owed -= self.yearly_credits[year]
-        self.yearly_tax_bill[year] = taxes_owed
+        taxes_owed_pre_credits = round(Decimal(taxes_owed))
+        # Tax payment actions have a negative amount
+        # so they are added to decrease taxes owed
+        if federal:
+            taxes_paid = sum([a.amount for a in action_logs if a.transaction.fed_income_tax_payment])
+        else: # state
+            taxes_paid = sum([a.amount for a in action_logs if a.transaction.state_income_tax_payment])
+        taxes_owed += float(taxes_paid)
+        credit_total = sum([c.get_amount(year) for c in self.credits if c.executable(year)])
+        taxes_owed -= credit_total
+        
+        self.summaries.append(YearSummary(
+            year = year,
+            taxable_income = taxable_income,
+            deductions = deductions,
+            income_post_deductions = income_post_deductions,
+            taxes_owed_pre_credits = taxes_owed_pre_credits,
+            credits = round(Decimal(credit_total)),
+            taxes_prepaid = taxes_paid,
+            tax_bill = round(Decimal(taxes_owed)),
+            max_rate = taxed_amounts[bracket_index-1][1],
+            balance_at_max_rate=round(Decimal(entering_balance)),
+        ))
+        
         deposit = False
         if taxes_owed < 0.0:
             deposit = True
             taxes_owed = abs(taxes_owed)
+        if federal:
+            tax_str = "Federal"
+        else:
+            tax_str = "State"
         return_transaction = Transaction(
-            name=f"{year} Federal Income Taxes",
+            name=f"{year} {tax_str} Income Taxes",
             amount=round(Decimal(taxes_owed)),
             source=self.source.name,
         )
@@ -169,14 +213,4 @@ class FederalIncomeTaxCaculator(BaseModel):
         :return: list of dictionaries of yearly data
         :rtype: list
         """
-        return [
-            {
-                "year": y,
-                "taxable_income": round(Decimal(self.yearly_taxable_income[y])),
-                "taxes_owed": round(Decimal(self.yearly_taxes_owed[y])),
-                "taxes_prepaid": round(Decimal(self.yearly_taxes_prepaid[y])),
-                "deductions": round(Decimal(self.yearly_deductions[y])),
-                "credits": round(Decimal(self.yearly_credits[y])),
-                "tax_bill": round(Decimal(self.yearly_tax_bill[y])),
-            } for y in self.yearly_tax_bill
-        ]
+        return [s.dict() for s in self.summaries]
