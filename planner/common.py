@@ -14,7 +14,7 @@ class InsufficientBalanceException(Exception):
 class FinanceBaseModel(BaseModel):
     name: str
 
-class InterestBaseModel(FinanceBaseModel):
+class InterestBaseModel(BaseModel):
     interest_rate: str = DEFAULT_INTEREST
 
     def get_interest_rate(self, interest_rates: dict):
@@ -27,8 +27,11 @@ class InterestBaseModel(FinanceBaseModel):
             self.interest_rate = interest_rates[self.interest_rate]
         except KeyError:
             raise(ValueError(f"Appreciation rate for asset {self.name}: {self.interest_rate} does not exist!"))
+
+class NamedInterestBaseModel(FinanceBaseModel, InterestBaseModel):
+    pass
         
-class DateBaseModel(InterestBaseModel):
+class DateBaseModel(NamedInterestBaseModel):
     start_date: date = None
     end_date: date = None
     start: str = None

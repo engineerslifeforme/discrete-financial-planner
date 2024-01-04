@@ -1,10 +1,11 @@
 from decimal import Decimal
+from datetime import date
 
 from pydantic import BaseModel
 from typing import List, Dict, Tuple
 
 from planner.transaction import Transaction
-from planner.common import round, ZERO
+from planner.common import round, ZERO, InterestBaseModel
 from planner.tax_deduction import TaxDeduction
 
 # The top tax rate remains 37% in 2024.
@@ -38,66 +39,43 @@ class YearSummary(BaseModel):
     max_rate: float
     balance_at_max_rate: Decimal
 
-class IncomeTaxCaculator(BaseModel):
+class IncomeTaxCaculator(InterestBaseModel):
     source: str
     deductions: List[TaxDeduction] = []
     credits: List[TaxDeduction] = []
     tax_brackets: List[Dict[str, float]] = TAX_BRACKETS
     summaries: List[YearSummary] = [] # Private
+    relative_year: int = None # Private
 
-    def new_year(self, year: int):
-        """Initializes a new year tracking
-
-        :param year: year as integer
-        :type year: int
-
-        Only for those incremented over time
-        """
-        self.yearly_taxable_income[year] = 0.0
-        self.yearly_taxes_prepaid[year] = 0.0
-        self.yearly_deductions[year] = 0.0
-        self.yearly_credits[year] = 0.0
-
-    def update_taxable_income(self, year: int, amount: float):
-        """ Track taxable income
-
-        :param year: year of income
-        :type year: int
-        :param amount: amount increment of income
-        :type amount: float
-        """
-        self.yearly_taxable_income[year] += amount
-
-    def update_taxes_paid(self, year: int, amount: float):
-        """ UPdate taxes paid
-
-        :param year: year of tax payment
-        :type year: int
-        :param amount: amount of taxes paid
-        :type amount: float
-        """
-        self.yearly_taxes_prepaid[year] += amount
-
-    def update_deductions(self, year: int, amount: float):
-        """ Update year deductions total
-
-        :param year: year of deduction
-        :type year: int
-        :param amount: amount of deduction
-        :type amount: float
-        """
-        self.yearly_deductions[year] += amount
-
-    def setup(self, asset_dict: dict):
+    def setup(self, asset_dict: dict, relative_year: int):
         """ Setup tax source mapping
 
         :param asset_dict: dictionary of names to asset objects
         :type asset_dict: dict
+        :param relative_year: year from which to grow
+        :type relative_year: int
         """
         try:
             self.source = asset_dict[self.source]
         except KeyError:
             raise(ValueError(f"Unknown source ({self.source}) on Federal Income Taxes"))
+        self.relative_year = relative_year
+        for deduction in self.deductions:
+            deduction.setup(relative_year)
+        for credit in self.credits:
+            credit.setup(relative_year)
+
+    def get_interest_rate(self, interest_rates: dict):
+        """ Need to push down interest rate assignments to subobjects
+
+        :param interest_rates: dictionary of interest rates keyed by name
+        :type interest_rates: dict
+        """
+        super().get_interest_rate(interest_rates)
+        for deduction in self.deductions:
+            deduction.get_interest_rate(interest_rates)
+        for credit in self.credits:
+            credit.get_interest_rate(interest_rates)
 
     def build_full_bracket_amounts(self, taxed_amounts: list) -> list:
         """Build list of tax cost per full bracket
@@ -112,18 +90,28 @@ class IncomeTaxCaculator(BaseModel):
             full_amounts.append(bracket_size * bracket_rate)
         return full_amounts
     
-    def build_rates_list(self) -> list:
+    def build_rates_list(self, year: int) -> list:
         """ Build incremental quantity of money with rate
-
+        
+        :param year: current year of taxes
+        :type year: int
         :return: list of bracket income size and rate
         :rtype: list
         """
         taxed_amounts = []
-        for index, bracket in enumerate(self.tax_brackets):
+        brackets = [
+            (self.interest_rate.calculate_value(
+                b["bottom_of_range"],
+                date(self.relative_year, 1, 1),
+                date(year, 1, 1),
+            ), b["rate"])
+            for b in self.tax_brackets
+        ]
+        for index, bracket in enumerate(brackets):
             try:
-                taxed_amounts.append((self.tax_brackets[index+1]["bottom_of_range"] - bracket["bottom_of_range"], bracket["rate"]))
+                taxed_amounts.append((brackets[index+1][0] - bracket[0], bracket[1]))
             except IndexError:
-                taxed_amounts.append((100000000000.0, bracket["rate"]))
+                taxed_amounts.append((100000000000.0, bracket[1]))
         return taxed_amounts
 
     def calculate_taxes(self, action_logs: list, year: int, federal: bool, mortgage_interest: float) -> Transaction:        
@@ -149,7 +137,7 @@ class IncomeTaxCaculator(BaseModel):
         deductions -= round(Decimal(mortgage_interest))
         balance += float(deductions)
         income_post_deductions = round(Decimal(balance))
-        taxed_amounts = self.build_rates_list()
+        taxed_amounts = self.build_rates_list(year)
         full_amounts = self.build_full_bracket_amounts(taxed_amounts)
         taxes_owed = 0.0
         bracket_index = 0        

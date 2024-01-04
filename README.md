@@ -6,6 +6,4 @@ tracked as `float`s and actions are reported as rounded
 
 ## TODO
 
-1. tax inflation
-2. state taxes
 3. tithe % take home

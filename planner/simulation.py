@@ -127,9 +127,11 @@ class Simulation(BaseModel):
         for mortgage in self.mortgages:
             mortgage.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
         if self.federal_income_taxes is not None:
-            self.federal_income_taxes.setup(asset_dict)        
+            self.federal_income_taxes.setup(asset_dict, self.start.year)        
+            self.federal_income_taxes.get_interest_rate(interest_rate_dict)
         if self.state_income_taxes is not None:
-            self.state_income_taxes.setup(asset_dict)        
+            self.state_income_taxes.setup(asset_dict, self.start.year)
+            self.state_income_taxes.get_interest_rate(interest_rate_dict)
 
     def run(self) -> tuple:
         """ Run simulation from start to end
