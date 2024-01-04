@@ -140,7 +140,6 @@ class IncomeTaxCaculator(BaseModel):
         """
         taxable_income = sum([a.amount for a in action_logs if a.transaction.income_taxable and a.amount > ZERO])
         balance = float(taxable_income)
-        # TODO: This do not account for mortgages
         if federal:
             deductions = sum([a.amount for a in action_logs if a.transaction.fed_tax_deductable])
         else: # state
