@@ -5,3 +5,4 @@
 *.yml
 !example.yml
 *.csv
+*_private

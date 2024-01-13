@@ -6,4 +6,5 @@ tracked as `float`s and actions are reported as rounded
 
 ## TODO
 
-3. tithe % take home
+1. tithe % take home
+1. Net Worth

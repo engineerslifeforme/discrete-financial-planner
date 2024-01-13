@@ -37,10 +37,7 @@ class Asset(BaseModel):
         The running balance is really tracked as a float
         but this allows a friendly value to be provided
         """
-        try:
-            return round(Decimal(self.f_balance))
-        except:
-            print("here")
+        return round(Decimal(self.f_balance))
     
     def get_state(self, date: date) -> dict:
         """ Get representation of state for logging

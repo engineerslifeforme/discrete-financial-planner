@@ -3,6 +3,7 @@ from dateutil.relativedelta import relativedelta
 
 from pydantic import BaseModel
 from typing import List, Dict
+from tqdm import tqdm
 
 from planner.asset import Asset
 from planner.interest_rate import InterestRate
@@ -155,7 +156,10 @@ class Simulation(BaseModel):
         action_logger.set_year(current_date.year)
         error_raised = None
         mortgage_interest = 0.0
-        while current_date <= self.end and error_raised is None:
+        networth_list = []
+        #import pdb;pdb.set_trace()
+        #while current_date <= self.end and error_raised is None:
+        for _ in tqdm(range((self.end - self.start).days), desc="Running simulation for each day..."):
             next_date = current_date + relativedelta(days=1)
             last_day_of_month = False
             year_ended = False
@@ -228,9 +232,32 @@ class Simulation(BaseModel):
                 action_logger.set_year(next_date.year)
                 mortgage_interest = 0.0
             
-            for asset in self.assets:
-                if last_day_of_month:                    
+            if last_day_of_month:
+                asset_total = ZERO
+                liability_total = ZERO
+                for asset in self.assets:                                        
                     asset_states.append(asset.get_state(current_date))
+                    asset_balance = asset.balance
+                    if asset_balance >= ZERO:
+                        asset_total += asset_balance
+                    else:
+                        #import pdb;pdb.set_trace()
+                        liability_total += asset_balance
+                networth_list.append({
+                    "type": "assets",
+                    "balance": asset_total,
+                    "date": current_date
+                })
+                networth_list.append({
+                    "type": "liabilities",
+                    "balance": liability_total,
+                    "date": current_date
+                })
+                networth_list.append({
+                    "type": "networth",
+                    "balance": asset_total + liability_total,
+                    "date": current_date
+                })
             
             current_date = next_date
             current_month = current_date.month            
@@ -239,6 +266,7 @@ class Simulation(BaseModel):
         if error_raised is not None:
             print("Simulation was unable to complete due to error:")
             print(error_raised)
+        print("Summarizing simulation results...")
         if self.federal_income_taxes is not None:
             fed_tax_data = self.federal_income_taxes.summarize()
         else:
@@ -247,4 +275,4 @@ class Simulation(BaseModel):
             state_tax_data = self.state_income_taxes.summarize()
         else:
             state_tax_data = None
-        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data
+        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data, networth_list
