@@ -241,7 +241,6 @@ class Simulation(BaseModel):
                     if asset_balance >= ZERO:
                         asset_total += asset_balance
                     else:
-                        #import pdb;pdb.set_trace()
                         liability_total += asset_balance
                 networth_list.append({
                     "type": "assets",

@@ -11,11 +11,15 @@ from planner.common import (
 from planner.transaction import Transaction
 from planner.action_log import ActionLog
 
+class PrematureWithdrawalException(Exception):
+    pass
+
 class Asset(BaseModel):
     name: str
     balance: Decimal = ZERO
     f_balance: float = 0.0
     allow_negative_balance: bool = False
+    min_withdrawal_date: date = None
 
     def __init__(self, *args, **kwargs):
         """ Asset initialization
@@ -68,6 +72,9 @@ class Asset(BaseModel):
         if deposit:
             amount = transaction.get_amount(current_date, deposit)
         else:
+            if self.min_withdrawal_date is not None:
+                if current_date < self.min_withdrawal_date:
+                    raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
             amount = -1.0 * transaction.get_amount(current_date, deposit)
         self.f_balance += amount
         if not self.allow_negative_balance:
