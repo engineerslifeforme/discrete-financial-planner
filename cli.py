@@ -7,8 +7,9 @@ from decimal import Decimal
 import yaml
 import pandas as pd
 
-from planner import Simulation, combine_configs
 from planner.common import round
+from planner.config_reading import read_configuration
+from planner import Simulation
 
 def cli():
     parser = argparse.ArgumentParser()
@@ -49,21 +50,8 @@ def cli():
         assert(args.yaml_path_list.exists()), f"Provided list file path does not exists: {args.yaml_path_list}"
     main(args.config_file_path, args.yaml_path_list, args.start_date, args.end_date)
 
-def main(configuration_paths: list, list_path: Path, start: datetime.date = None, end: datetime.date = None):
-    if list_path is not None:
-        configuration_paths = [Path(p) for p in yaml.safe_load(list_path.read_text())]
-    configurations = [
-        yaml.safe_load(p.read_text()) for p in configuration_paths
-    ]
-    configuration = combine_configs(configurations)
-    if start is None:
-        start = datetime.datetime.today().date()
-    else:
-        configuration["start"] = start
-    if end is None:
-        end = datetime.datetime.today().date() + relativedelta(years=20)
-    else:
-        configuration["end"] = end
+def main(*args, **kwargs):
+    configuration = read_configuration(*args, **kwargs)
     simulation = Simulation(**configuration)
     _, asset_states, action_logs, tax_data, state_tax_data, networth_data = simulation.run()
     print("Writing results to file")
@@ -74,6 +62,8 @@ def main(configuration_paths: list, list_path: Path, start: datetime.date = None
         pd.DataFrame(tax_data).to_csv("yearly_fed_taxes.csv", index=False)
     if state_tax_data is not None:
         pd.DataFrame(state_tax_data).to_csv("yearly_state_taxes.csv", index=False)
+
+
 
 def valid_date(s):
     try:
