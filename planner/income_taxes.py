@@ -35,6 +35,7 @@ class YearSummary(BaseModel):
     taxes_owed_pre_credits: Decimal
     credits: Decimal
     taxes_prepaid: Decimal
+    taxes: Decimal
     tax_bill: Decimal
     max_rate: float
     balance_at_max_rate: Decimal
@@ -153,15 +154,16 @@ class IncomeTaxCaculator(InterestBaseModel):
                 balance -= balance
             bracket_index += 1
         taxes_owed_pre_credits = round(Decimal(taxes_owed))
+        credit_total = sum([c.get_amount(year) for c in self.credits if c.executable(year)])
+        taxes_owed -= credit_total
         # Tax payment actions have a negative amount
         # so they are added to decrease taxes owed
         if federal:
             taxes_paid = sum([a.amount for a in action_logs if a.transaction.fed_income_tax_payment])
         else: # state
             taxes_paid = sum([a.amount for a in action_logs if a.transaction.state_income_tax_payment])
-        taxes_owed += float(taxes_paid)
-        credit_total = sum([c.get_amount(year) for c in self.credits if c.executable(year)])
-        taxes_owed -= credit_total
+        tax_balance = taxes_owed + float(taxes_paid)
+        
         
         self.summaries.append(YearSummary(
             year = year,
@@ -171,22 +173,23 @@ class IncomeTaxCaculator(InterestBaseModel):
             taxes_owed_pre_credits = taxes_owed_pre_credits,
             credits = round(Decimal(credit_total)),
             taxes_prepaid = taxes_paid,
-            tax_bill = round(Decimal(taxes_owed)),
+            taxes = round(Decimal(taxes_owed)),
+            tax_bill = round(Decimal(tax_balance)),
             max_rate = taxed_amounts[bracket_index-1][1],
             balance_at_max_rate=round(Decimal(entering_balance)),
         ))
         
         deposit = False
-        if taxes_owed < 0.0:
+        if tax_balance < 0.0:
             deposit = True
-            taxes_owed = abs(taxes_owed)
+            tax_balance = abs(tax_balance)
         if federal:
             tax_str = "Federal"
         else:
             tax_str = "State"
         return_transaction = Transaction(
-            name=f"{year} {tax_str} Income Taxes",
-            amount=round(Decimal(taxes_owed)),
+            name=f"{tax_str} Income Taxes",
+            amount=round(Decimal(tax_balance)),
             source=self.source.name,
         )
         # Pydantic won't allow direct assignment
