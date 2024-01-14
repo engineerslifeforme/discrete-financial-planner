@@ -47,7 +47,9 @@ class ActionLogger:
         sorted_years.sort()
         flat_list = []
         for key in sorted_years:
-            flat_list.extend(self.action_logs[key])
+            flat_list.extend([
+                l.to_dict() for l in self.action_logs[key]
+            ])
         return flat_list
 
 def combine_configs(config_list: list) -> dict:
