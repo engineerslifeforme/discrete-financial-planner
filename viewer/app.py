@@ -17,8 +17,8 @@ run_type = st.radio(
 live_operation = run_type == run_options[1]
 
 if live_operation:
+    configuration = read_configuration([], Path("../payne_private/all_payne.yml"))
     with st.spinner('Running simulation...'):
-        configuration = read_configuration([], Path("../payne_private/all_payne.yml"))
         simulation = Simulation(**configuration)
         _, asset_states, action_logs, tax_data, state_tax_data, networth_data = simulation.run()
 
