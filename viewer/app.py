@@ -7,6 +7,8 @@ import pandas as pd
 from planner.config_reading import read_configuration
 from planner import Simulation
 
+from simulation_editor import edit_simulation
+
 """ # Plan Results Viewer"""
 
 run_options = ["Previous", "Live"]
@@ -19,13 +21,23 @@ live_operation = run_type == run_options[1]
 if live_operation:
     configuration = read_configuration([], Path("../payne_private/all_payne.yml"))
     with st.spinner('Running simulation...'):
-        simulation = Simulation(**configuration)
+        simulation = edit_simulation(Simulation(**configuration))
+        #if st.button("Run Simulation"):
         _, asset_states, action_logs, tax_data, state_tax_data, networth_data = simulation.run()
+        # else:
+        #     st.stop()
 
 if live_operation:
     data = pd.DataFrame(asset_states)
 else:
     data = pd.read_csv("../output.csv")
+if st.checkbox("Filter Assets"):
+    selectable_assets = data["name"].unique()
+    selected_assets = st.multiselect(
+        "Filtered Assets",
+        options=selectable_assets
+    )
+    data = data.loc[data["name"].isin(selected_assets)]
 st.plotly_chart(px.line(
     data,
     x="date",

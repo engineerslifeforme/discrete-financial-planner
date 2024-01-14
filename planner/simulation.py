@@ -52,50 +52,6 @@ class ActionLogger:
             ])
         return flat_list
 
-def combine_configs(config_list: list) -> dict:
-    """ Combines multiple potentially subset dicts to a single
-
-    :param config_list: multiple subset dictionaries
-    :type config_list: list
-    :return: single combined dictionary of data
-    :rtype: dict
-    """
-    simple_keys = ["start", "end"]
-    list_keys = [
-        "transactions",
-        "mortgages",
-        "interest_rates",
-        "assets",
-    ]
-    skeleton = {k: [] for k in list_keys}
-    skeleton["dates"] = {}
-    for s in simple_keys:
-        skeleton[s] = None
-    for c in config_list:
-        try:
-            skeleton["federal_income_taxes"] = c["federal_income_taxes"]
-        except KeyError:
-            pass
-        try:
-            skeleton["state_income_taxes"] = c["state_income_taxes"]
-        except KeyError:
-            pass
-        try:
-            skeleton["dates"].update(c["dates"])
-        except KeyError:
-            pass
-        for s in simple_keys:
-            try:
-                skeleton[s] = c[s]
-            except KeyError:
-                pass
-        for l in list_keys:
-            try:
-                skeleton[l].extend(c[l])
-            except KeyError:
-                pass
-    return skeleton
-
 class Simulation(BaseModel):
     start: date
     end: date

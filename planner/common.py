@@ -27,6 +27,9 @@ class InterestBaseModel(BaseModel):
             self.interest_rate = interest_rates[self.interest_rate]
         except KeyError:
             raise(ValueError(f"Appreciation rate for asset {self.name}: {self.interest_rate} does not exist!"))
+        except TypeError:
+                # has already been assigned so using as dict key will fail
+                pass
 
 class NamedInterestBaseModel(FinanceBaseModel, InterestBaseModel):
     pass

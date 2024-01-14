@@ -97,11 +97,17 @@ class Transaction(DateBaseModel):
                 self.source = asset_dict[self.source]
             except KeyError:
                 raise(ValueError(f"Unknown source ({self.source}) on transaction {self.name}"))
+            except TypeError:
+                # has already been assigned so using as dict key will fail
+                pass
         if self.destination is not None:
             try:
                 self.destination = asset_dict[self.destination]
             except KeyError:
                 raise(ValueError(f"Unknown destination ({self.destination}) on transaction {self.name}"))        
+            except TypeError:
+                # has already been assigned so using as dict key will fail
+                pass
         # will cause transaction to happen on first valid date
         self.period_counter = self.frequency_periods
         self.get_interest_rate(interest_rates)

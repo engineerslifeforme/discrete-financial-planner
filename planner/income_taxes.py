@@ -60,6 +60,9 @@ class IncomeTaxCaculator(InterestBaseModel):
             self.source = asset_dict[self.source]
         except KeyError:
             raise(ValueError(f"Unknown source ({self.source}) on Federal Income Taxes"))
+        except TypeError:
+                # has already been assigned so using as dict key will fail
+                pass
         self.relative_year = relative_year
         for deduction in self.deductions:
             deduction.setup(relative_year)
