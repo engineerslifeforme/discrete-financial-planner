@@ -53,9 +53,9 @@ def test_run(simulation):
     # Daily interest compounds a little differently
     # than the simply method below
     assert(
-        abs(simulation.assets[0].balance - round(Decimal(BALANCE) + (Decimal(BALANCE) * (Decimal(RATE) / Decimal("100.00"))))) < Decimal("1.00")
+        abs(simulation.assets[0].get_balance() - round(Decimal(BALANCE) + (Decimal(BALANCE) * (Decimal(RATE) / Decimal("100.00"))))) < Decimal("1.00")
     )
 
 def test_transactions(transaction_simulation):
     transaction_simulation.run()
-    assert(transaction_simulation.assets[0].balance == Decimal(BALANCE) + Decimal("13") * Decimal(INCREMENT))
+    assert(transaction_simulation.assets[0].get_balance() == Decimal(BALANCE) + Decimal("13") * Decimal(INCREMENT))

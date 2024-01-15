@@ -33,6 +33,7 @@ class Transaction(DateBaseModel):
     state_income_tax_payment: bool = False
     fed_tax_deductable: bool = False
     state_tax_deductable: bool = False
+    category: str = None
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 
@@ -113,6 +114,8 @@ class Transaction(DateBaseModel):
         self.get_interest_rate(interest_rates)
         self.setup_dates(start_date, end_date, date_dict)
         self.check()
+        if self.category is None:
+            self.category = f"{self.name} (Uncategorized)"
 
     def check(self):
         """ Check the integrity of the Transaction definition
@@ -184,5 +187,6 @@ class Transaction(DateBaseModel):
             "state_income_tax_payment": self.state_income_tax_payment,
             "fed_tax_deductable": self.fed_tax_deductable,
             "state_tax_deductable": self.state_tax_deductable,
+            "category": self.category,
         }
 

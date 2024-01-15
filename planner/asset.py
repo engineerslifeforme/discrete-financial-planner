@@ -31,8 +31,7 @@ class Asset(BaseModel):
         super().__init__(*args, **kwargs)
         self.f_balance = float(kwargs.get("balance", ZERO))
 
-    @property
-    def balance(self) -> Decimal:
+    def get_balance(self) -> Decimal:
         """ Provide the running balance as Decimal
 
         :return: running balance as Decimal
@@ -54,7 +53,7 @@ class Asset(BaseModel):
         return {
             "date": date,
             "name": self.name,
-            "balance": str(self.balance)
+            "balance": str(self.get_balance())
         }
     
     def execute_transaction(self, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
@@ -87,4 +86,4 @@ class Asset(BaseModel):
             changed_item=self.name,
             date = current_date,
         )
-        return self.balance, amount, log
+        return self.get_balance(), amount, log

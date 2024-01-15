@@ -66,7 +66,7 @@ class Mortgage(Transaction):
         :return: true = should execute, false = should not
         :rtype: bool
         """
-        if self.destination.balance == ZERO:
+        if self.destination.get_balance() == ZERO:
             return False
         else:
             return super().executable(*args, **kwargs)

@@ -195,7 +195,7 @@ class Simulation(BaseModel):
                 liability_total = ZERO
                 for asset in self.assets:                                        
                     asset_states.append(asset.get_state(current_date))
-                    asset_balance = asset.balance
+                    asset_balance = asset.get_balance()
                     if asset_balance >= ZERO:
                         asset_total += asset_balance
                     else:

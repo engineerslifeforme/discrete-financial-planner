@@ -31,14 +31,14 @@ def example_asset():
 def test_asset():
     asset = Asset(**yaml.safe_load("name: An Asset"))
     assert(asset.name == "An Asset")
-    assert(asset.balance == ZERO)
+    assert(asset.get_balance() == ZERO)
     
     asset = Asset(**yaml.safe_load("""name: An Asset2
 balance: 100.00"""))
     assert(asset.name == "An Asset2")
-    assert(asset.balance == Decimal("100.00"))
+    assert(asset.get_balance() == Decimal("100.00"))
 
 def test_mature(example_asset):
-    assert(example_asset.balance == EXAMPLE_BALANCE)
+    assert(example_asset.get_balance() == EXAMPLE_BALANCE)
     example_asset.mature()
     assert(example_asset.f_balance == float(EXAMPLE_BALANCE) * (1.0 + ((EXAMPLE_RATE / 100.0) / 365.0)))

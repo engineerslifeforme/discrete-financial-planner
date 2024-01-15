@@ -71,13 +71,14 @@ if st.checkbox("Show Expenses", value=True):
         default=account_options,
     )
     data["year"] = data["date"].dt.year
+    data = data.drop(["date"], axis="columns")
     data = data.loc[data["changed_item"].isin(selected_accounts), :]
-    data = data.groupby(["year", "transaction_name"]).sum().reset_index(drop=False)
+    data = data.groupby(["year", "category"]).sum().reset_index(drop=False)
     st.plotly_chart(px.bar(
         data,
         x="year",
         y="amount",
-        color="transaction_name",
+        color="category",
     ))
 if st.checkbox("Show Fed Taxes", value=True):
     if live_operation:
