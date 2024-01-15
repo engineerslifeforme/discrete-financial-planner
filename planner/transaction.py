@@ -34,6 +34,7 @@ class Transaction(DateBaseModel):
     fed_tax_deductable: bool = False
     state_tax_deductable: bool = False
     category: str = None
+    priority: int = 100
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 

@@ -125,20 +125,26 @@ class Simulation(BaseModel):
                 last_day_of_month = True
             if next_date.year != current_date.year:
                 year_ended = True
+            ready_transactions = []
             for transaction in self.transactions:
                 if transaction.executable(current_date):
-                    # Order is important here, change destination then source
-                    # transaction amount is sometimes based on source balance
-                    try:
-                        if transaction.destination is not None:
-                            _, _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
-                            action_logger.add_action_log(transaction_log)
-                        if transaction.source is not None:
-                            _, _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
-                            action_logger.add_action_log(transaction_log)
-                    except InsufficientBalanceException as e:
-                        error_raised = e
-                        break
+                    ready_transactions.append(
+                        (transaction.priority, transaction)
+                    )
+            ready_transactions.sort(key=lambda tup: tup[0])
+            for _, transaction in ready_transactions:
+                # Order is important here, change destination then source
+                # transaction amount is sometimes based on source balance
+                try:
+                    if transaction.destination is not None:
+                        _, _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
+                        action_logger.add_action_log(transaction_log)
+                    if transaction.source is not None:
+                        _, _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
+                        action_logger.add_action_log(transaction_log)
+                except InsufficientBalanceException as e:
+                    error_raised = e
+                    break
             
             for mortgage in self.mortgages:
                 if mortgage.executable(current_date):
