@@ -23,9 +23,14 @@ if live_operation:
     with st.spinner('Running simulation...'):
         simulation = edit_simulation(Simulation(**configuration))
         #if st.button("Run Simulation"):
-        _, asset_states, action_logs, tax_data, state_tax_data, networth_data = simulation.run()
+        days, asset_states, action_logs, tax_data, state_tax_data, networth_data, error_raised = simulation.run()
         # else:
         #     st.stop()
+        if error_raised is not None:
+            st.error(error_raised)
+        else:
+            st.success("Simulation ran to completion!")
+        st.info(f"Simulated {days} days")
 
 if live_operation:
     data = pd.DataFrame(asset_states)

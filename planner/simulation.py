@@ -232,4 +232,4 @@ class Simulation(BaseModel):
             state_tax_data = self.state_income_taxes.summarize()
         else:
             state_tax_data = None
-        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data, networth_list
+        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data, networth_list, error_raised
