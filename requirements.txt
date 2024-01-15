@@ -1,3 +1,5 @@
 StrEnum
 pandas
 tqdm
+pyyaml
+pydantic
