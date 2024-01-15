@@ -85,6 +85,19 @@ if st.checkbox("Show Expenses", value=True):
         y="amount",
         color="category",
     ))
+
+    selected_year = int(st.selectbox(
+        "Expenses for Selected Year",
+        options=data["year"].unique(),
+    ))
+    pie_data = data.loc[data["year"] == selected_year, :]
+    pie_data["abs_amount"] = pie_data["amount"].abs()
+    st.plotly_chart(px.pie(
+        pie_data,
+        names="category",
+        values="abs_amount",
+    ))
+
 if st.checkbox("Show Fed Taxes", value=True):
     if live_operation:
         data = pd.DataFrame(tax_data)
