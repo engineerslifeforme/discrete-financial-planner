@@ -144,7 +144,8 @@ class IncomeTaxCaculator(InterestBaseModel):
         taxed_amounts = self.build_rates_list(year)
         full_amounts = self.build_full_bracket_amounts(taxed_amounts)
         taxes_owed = 0.0
-        bracket_index = 0        
+        bracket_index = 0    
+        entering_balance = balance    
         while balance > 0.0:
             # Use later to capture how much money was in the highest bracket
             entering_balance = balance

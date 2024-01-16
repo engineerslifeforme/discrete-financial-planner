@@ -16,6 +16,17 @@ def edit_simulation(simulation: Simulation) -> Simulation:
             "Simulation Start Date",
             value=simulation.end,
         )
+    if st.checkbox("Edit Dates"):
+        date_to_edit = st.selectbox(
+            "Date to Edit",
+            options=list(simulation.dates.keys())
+        )
+        simulation.dates[date_to_edit] = st.date_input(
+            f"New Date for {date_to_edit}",
+            value=simulation.dates[date_to_edit]
+        )
+        # For any dates and assignments that were changed
+        simulation.setup()
     if st.checkbox("Edit Transactions"):
         with st.expander("Edited Transactions"):
             editable_transactions = st.number_input(
