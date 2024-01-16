@@ -19,18 +19,27 @@ run_type = st.radio(
 live_operation = run_type == run_options[1]
 
 if live_operation:
-    configuration = read_configuration([], Path("../payne_private/all_payne.yml"))
-    with st.spinner('Running simulation...'):
-        simulation = edit_simulation(Simulation(**configuration))
-        #if st.button("Run Simulation"):
-        days, asset_states, action_logs, tax_data, state_tax_data, networth_data, error_raised = simulation.run()
-        # else:
-        #     st.stop()
-        if error_raised is not None:
-            st.error(error_raised)
-        else:
-            st.success("Simulation ran to completion!")
-        st.info(f"Simulated {days} days")
+    if st.checkbox("Auto-run"):
+        run = True
+    else:
+        run = st.button("Run Simulation")
+    if run:
+        configuration = read_configuration([], Path("../payne_private/all_payne.yml"))
+        with st.spinner('Running simulation...'):
+            simulation = edit_simulation(Simulation(**configuration))
+            #if st.button("Run Simulation"):
+            days, asset_states, action_logs, tax_data, state_tax_data, networth_data, error_raised = simulation.run()
+            # else:
+            #     st.stop()
+            if error_raised is not None:
+                st.error(error_raised)
+            else:
+                st.success("Simulation ran to completion!")
+            st.info(f"Simulated {days} days")
+    else:
+        st.stop()
+else:
+    st.button("Refresh")
 
 if live_operation:
     data = pd.DataFrame(asset_states)
