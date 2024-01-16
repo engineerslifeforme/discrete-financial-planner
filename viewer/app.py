@@ -68,7 +68,9 @@ nw_data["type"] = "liability"
 nw_data.loc[nw_data["asset"], "type"] = "asset"
 total_data = data.groupby(["date"]).sum().reset_index(drop=False)
 total_data["type"] = "net_worth"
-nw_data = pd.concat([total_data, nw_data])
+category_data = data.groupby(["date", "category"]).sum().reset_index(drop=False)
+category_data["type"] = category_data["category"]
+nw_data = pd.concat([total_data, nw_data, category_data])
 st.plotly_chart(px.line(
     nw_data,
     x="date",

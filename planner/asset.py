@@ -20,6 +20,7 @@ class Asset(BaseModel):
     f_balance: float = 0.0
     allow_negative_balance: bool = False
     min_withdrawal_date: date = None
+    category: str = None
 
     def __init__(self, *args, **kwargs):
         """ Asset initialization
@@ -30,6 +31,8 @@ class Asset(BaseModel):
         """
         super().__init__(*args, **kwargs)
         self.f_balance = float(kwargs.get("balance", ZERO))
+        if self.category is None:
+            self.category = self.name
 
     def get_balance(self) -> Decimal:
         """ Provide the running balance as Decimal
@@ -53,7 +56,8 @@ class Asset(BaseModel):
         return {
             "date": date,
             "name": self.name,
-            "balance": str(self.get_balance())
+            "balance": str(self.get_balance()),
+            "category": self.category,
         }
     
     def execute_transaction(self, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
