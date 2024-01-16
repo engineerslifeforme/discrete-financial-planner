@@ -28,7 +28,7 @@ if live_operation:
         with st.spinner('Running simulation...'):
             simulation = edit_simulation(Simulation(**configuration))
             #if st.button("Run Simulation"):
-            days, asset_states, action_logs, tax_data, state_tax_data, networth_data, error_raised = simulation.run()
+            days, asset_states, action_logs, tax_data, state_tax_data, error_raised = simulation.run()
             # else:
             #     st.stop()
             if error_raised is not None:
@@ -59,11 +59,18 @@ st.plotly_chart(px.line(
     color="name",
 ))
 if live_operation:
-    data = pd.DataFrame(networth_data)
+    data = pd.DataFrame(asset_states)
 else:
-    data = pd.read_csv("../networth.csv")
+    data = pd.read_csv("../output.csv")
+data["asset"] = data["balance"] > 0.0
+nw_data = data.groupby(["date", "asset"]).sum().reset_index(drop=False)
+nw_data["type"] = "liability"
+nw_data.loc[nw_data["asset"], "type"] = "asset"
+total_data = data.groupby(["date"]).sum().reset_index(drop=False)
+total_data["type"] = "net_worth"
+nw_data = pd.concat([total_data, nw_data])
 st.plotly_chart(px.line(
-    data,
+    nw_data,
     x="date",
     y="balance",
     color="type",

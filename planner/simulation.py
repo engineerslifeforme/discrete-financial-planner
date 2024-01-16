@@ -114,8 +114,6 @@ class Simulation(BaseModel):
         action_logger.set_year(current_date.year)
         error_raised = None
         mortgage_interest = 0.0
-        networth_list = []
-        #import pdb;pdb.set_trace()
         #while current_date <= self.end and error_raised is None:
         for _ in tqdm(range((self.end - self.start).days), desc="Running simulation for each day..."):
             next_date = current_date + relativedelta(days=1)
@@ -197,30 +195,8 @@ class Simulation(BaseModel):
                 mortgage_interest = 0.0
             
             if last_day_of_month:
-                asset_total = ZERO
-                liability_total = ZERO
                 for asset in self.assets:                                        
                     asset_states.append(asset.get_state(current_date))
-                    asset_balance = asset.get_balance()
-                    if asset_balance >= ZERO:
-                        asset_total += asset_balance
-                    else:
-                        liability_total += asset_balance
-                networth_list.append({
-                    "type": "assets",
-                    "balance": asset_total,
-                    "date": current_date
-                })
-                networth_list.append({
-                    "type": "liabilities",
-                    "balance": liability_total,
-                    "date": current_date
-                })
-                networth_list.append({
-                    "type": "networth",
-                    "balance": asset_total + liability_total,
-                    "date": current_date
-                })
             
             current_date = next_date
             current_month = current_date.month            
@@ -238,4 +214,4 @@ class Simulation(BaseModel):
             state_tax_data = self.state_income_taxes.summarize()
         else:
             state_tax_data = None
-        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data, networth_list, error_raised
+        return days, asset_states, action_logger.flatten_logs(), fed_tax_data, state_tax_data, error_raised

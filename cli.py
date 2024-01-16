@@ -53,11 +53,10 @@ def cli():
 def main(*args, **kwargs):
     configuration = read_configuration(*args, **kwargs)
     simulation = Simulation(**configuration)
-    _, asset_states, action_logs, tax_data, state_tax_data, networth_data, _ = simulation.run()
+    _, asset_states, action_logs, tax_data, state_tax_data, _ = simulation.run()
     print("Writing results to file")
     pd.DataFrame(asset_states).to_csv("output.csv", index=False)
     pd.DataFrame(action_logs).to_csv("changes.csv", index=False)
-    pd.DataFrame(networth_data).to_csv("networth.csv", index=False)
     if tax_data is not None:
         pd.DataFrame(tax_data).to_csv("yearly_fed_taxes.csv", index=False)
     if state_tax_data is not None:
