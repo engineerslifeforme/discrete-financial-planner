@@ -60,9 +60,11 @@ class Asset(BaseModel):
             "category": self.category,
         }
     
-    def execute_transaction(self, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
+    def execute_transaction(self, transaction_amount: float, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
         """ Execute transaction on asset balance
 
+        :param transaction_amount: amount to be modified
+        :param transaction_amount: float
         :param transaction: transaction to be executed
         :type transaction: Transaction
         :param deposit: whether the transaction is a deposit (true) or withdrawal (false)
@@ -73,12 +75,12 @@ class Asset(BaseModel):
         :rtype: tuple
         """
         if deposit:
-            amount = transaction.get_amount(current_date, deposit)
+            amount = transaction_amount
         else:
             if self.min_withdrawal_date is not None:
                 if current_date < self.min_withdrawal_date:
                     raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
-            amount = -1.0 * transaction.get_amount(current_date, deposit)
+            amount = -1.0 * transaction_amount
         self.f_balance += amount
         if not self.allow_negative_balance:
             if self.f_balance < 0.0:

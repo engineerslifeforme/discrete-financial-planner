@@ -131,14 +131,20 @@ class Simulation(BaseModel):
                     )
             ready_transactions.sort(key=lambda tup: tup[0])
             for _, transaction in ready_transactions:
-                # Order is important here, change destination then source
-                # transaction amount is sometimes based on source balance
                 try:
+                    # TODO: Still do better on assuring this does not partially complete
+                    # Maybe need to do withdrawal first now that order is fixed?
+                    deposit_amount = None
+                    withdrawal_amount = None
                     if transaction.destination is not None:
-                        _, _, transaction_log = transaction.destination.execute_transaction(transaction, True, current_date)
-                        action_logger.add_action_log(transaction_log)
+                        deposit_amount = transaction.get_amount(current_date, True)
                     if transaction.source is not None:
-                        _, _, transaction_log = transaction.source.execute_transaction(transaction, False, current_date)
+                        withdrawal_amount = transaction.get_amount(current_date, False)
+                    if deposit_amount is not None:
+                        _, _, transaction_log = transaction.destination.execute_transaction(deposit_amount, transaction, True, current_date)
+                        action_logger.add_action_log(transaction_log)
+                    if withdrawal_amount is not None:
+                        _, _, transaction_log = transaction.source.execute_transaction(withdrawal_amount, transaction, False, current_date)
                         action_logger.add_action_log(transaction_log)
                 except InsufficientBalanceException as e:
                     error_raised = e
@@ -149,10 +155,12 @@ class Simulation(BaseModel):
                     # Order is important here, change source then destination
                     # mortgage amount based on remaining balance of debt, so change debt second
                     try:
+                        payment_amount = mortgage.get_amount(current_date, False)
+                        principal_amount = mortgage.get_amount(current_date, True)
                         mortgage_interest += mortgage.payment_interest
-                        _, _, mortgage_log = mortgage.source.execute_transaction(mortgage, False, current_date)
+                        _, _, mortgage_log = mortgage.source.execute_transaction(payment_amount, mortgage, False, current_date)
                         action_logger.add_action_log(mortgage_log)
-                        _, _, mortgage_log = mortgage.destination.execute_transaction(mortgage, True, current_date)
+                        _, _, mortgage_log = mortgage.destination.execute_transaction(principal_amount, mortgage, True, current_date)
                         action_logger.add_action_log(mortgage_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
@@ -170,7 +178,8 @@ class Simulation(BaseModel):
                     # the way the delayed assignment is handled
                     tax_transaction.interest_rate = ZERO_INTEREST_RATE
                     try:
-                        _, _, transaction_log = tax_transaction.source.execute_transaction(tax_transaction, deposit, current_date)
+                        tax_transaction_amount = tax_transaction.get_amount(current_date, deposit)
+                        _, _, transaction_log = tax_transaction.source.execute_transaction(tax_transaction_amount, tax_transaction, deposit, current_date)
                         action_logger.add_action_log(transaction_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
@@ -186,7 +195,8 @@ class Simulation(BaseModel):
                     # the way the delayed assignment is handled
                     tax_transaction.interest_rate = ZERO_INTEREST_RATE
                     try:
-                        _, _, transaction_log = tax_transaction.source.execute_transaction(tax_transaction, deposit, current_date)
+                        tax_transaction_amount = tax_transaction.get_amount(current_date, deposit)
+                        _, _, transaction_log = tax_transaction.source.execute_transaction(tax_transaction_amount, tax_transaction, deposit, current_date)
                         action_logger.add_action_log(transaction_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
