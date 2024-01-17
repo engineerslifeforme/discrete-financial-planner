@@ -21,6 +21,7 @@ class Transaction(DateBaseModel):
     amount: Decimal = ZERO
     amount_remaining_balance: bool = False
     amount_above: Decimal = None
+    maintain_balance: Decimal = None
     frequency: FrequencyEnum = FrequencyEnum.monthly
     frequency_periods: int = 1
     source: str = None
@@ -57,6 +58,10 @@ class Transaction(DateBaseModel):
             float_threshold = float(self.amount_above)
             if self.source.f_balance >= float_threshold:
                 return_amount = self.source.f_balance - float_threshold
+        elif self.maintain_balance is not None:
+            deposit_needed = float(self.maintain_balance) - self.destination.f_balance
+            if deposit_needed > 0.0:
+                return_amount = deposit_needed
         elif self.asset_maturity:
             return_amount = self.interest_rate.calculate_value(
                 float(self.destination.f_balance),
