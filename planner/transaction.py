@@ -76,6 +76,7 @@ class Transaction(DateBaseModel):
                 current_date,
             )
         if self.source is not None:
+            # TODO add contribution vs earnings logic here
             if return_amount > self.source.f_balance:
                 if self.amount_required:
                     raise(InsufficientBalanceException(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) on {current_date} from source {self.source.name}"))
