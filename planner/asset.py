@@ -20,7 +20,9 @@ class Asset(BaseModel):
     f_balance: float = 0.0
     allow_negative_balance: bool = False
     min_withdrawal_date: date = None
+    min_earnings_date: date = None
     category: str = None
+    contribution_balance: float = None
 
     def __init__(self, *args, **kwargs):
         """ Asset initialization
@@ -33,6 +35,8 @@ class Asset(BaseModel):
         self.f_balance = float(kwargs.get("balance", ZERO))
         if self.category is None:
             self.category = self.name
+        if self.contribution_balance is None:
+            self.contribution_balance = self.f_balance
 
     def get_balance(self) -> Decimal:
         """ Provide the running balance as Decimal
@@ -58,6 +62,7 @@ class Asset(BaseModel):
             "name": self.name,
             "balance": str(self.get_balance()),
             "category": self.category,
+            "contribution_balance": round(Decimal(self.contribution_balance)),
         }
     
     def execute_transaction(self, transaction_amount: float, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
@@ -82,9 +87,14 @@ class Asset(BaseModel):
                     raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
             amount = -1.0 * transaction_amount
         self.f_balance += amount
+        if not transaction.asset_maturity:
+            self.contribution_balance += amount
         if not self.allow_negative_balance:
             if self.f_balance < 0.0:
                 raise(InsufficientBalanceException(f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"))
+        if self.min_earnings_date is not None:
+            if self.contribution_balance < 0.0 and current_date < self.min_earnings_date:
+                raise(PrematureWithdrawalException(f"Withdrawals of earnings not allowed for {self.name} prior to {self.min_earnings_date}, attempted on {current_date}"))
         log = ActionLog(
             action_type="Asset Transaction",
             transaction=transaction,

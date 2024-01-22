@@ -148,3 +148,18 @@ if st.checkbox("Show State Taxes", value=True):
         y="value",
         color="variable",
     ))
+if st.checkbox("Log Viewer"):
+    if st.checkbox("Filter States"):
+        data = pd.read_csv("../output.csv")
+        selected_name = st.selectbox(
+            "Account to filter on",
+            options=data["name"].unique()
+        )
+        st.write(data[data["name"] == selected_name])
+    if st.checkbox("Filter Changes"):
+        data = pd.read_csv("../changes.csv")
+        selected_name = st.selectbox(
+            "Account to filter",
+            options=data["changed_item"].unique()
+        )
+        st.write(data[data["changed_item"] == selected_name])
