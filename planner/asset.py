@@ -23,7 +23,6 @@ class Asset(BaseModel):
     min_earnings_date: date = None
     category: str = None
     contribution_balance: float = None
-    earnings_balance: float = 0.0
 
     def __init__(self, *args, **kwargs):
         """ Asset initialization
@@ -64,7 +63,6 @@ class Asset(BaseModel):
             "balance": str(self.get_balance()),
             "category": self.category,
             "contribution_balance": round(Decimal(self.contribution_balance)),
-            "earnings_balance": round(Decimal(self.earnings_balance)),
         }
     
     def execute_transaction(self, transaction_amount: float, transaction: Transaction, deposit: bool, current_date: date) -> tuple:
@@ -89,29 +87,14 @@ class Asset(BaseModel):
                     raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
             amount = -1.0 * transaction_amount
         self.f_balance += amount
-        if transaction.asset_maturity:
-            self.earnings_balance += amount
-        else:
-            if deposit:
-                self.contribution_balance += amount
-            else:
-                # TODO: transaction should specifically request this
-                # allow full transaction not required on contributions
-                if abs(amount) > self.contribution_balance:
-                    if self.min_earnings_date is not None:
-                        if current_date < self.min_earnings_date:
-                            raise(PrematureWithdrawalException(f"Withdrawal of earnings is not allowed for {self.name} prior to {self.min_earnings_date}, attempted on {current_date}"))
-                    earnings_withdraw = amount + self.contribution_balance
-                    self.contribution_balance = 0.0
-                    self.earnings_balance += earnings_withdraw
-                else:
-                    self.contribution_balance += amount
-        if self.earnings_balance < 0.0:
-            self.earnings_balance = 0.0
-            self.contribution_balance = self.f_balance
+        if not transaction.asset_maturity:
+            self.contribution_balance += amount
         if not self.allow_negative_balance:
             if self.f_balance < 0.0:
                 raise(InsufficientBalanceException(f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"))
+        if self.min_earnings_date is not None:
+            if self.contribution_balance < 0.0 and current_date < self.min_earnings_date:
+                raise(PrematureWithdrawalException(f"Withdrawals of earnings not allowed for {self.name} prior to {self.min_earnings_date}, attempted on {current_date}"))
         log = ActionLog(
             action_type="Asset Transaction",
             transaction=transaction,

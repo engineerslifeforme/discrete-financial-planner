@@ -36,6 +36,7 @@ class Transaction(DateBaseModel):
     state_tax_deductable: bool = False
     category: str = None
     priority: int = 100
+    contributions_only: bool = False
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 
@@ -76,12 +77,17 @@ class Transaction(DateBaseModel):
                 current_date,
             )
         if self.source is not None:
-            # TODO add contribution vs earnings logic here
             if return_amount > self.source.f_balance:
                 if self.amount_required:
                     raise(InsufficientBalanceException(f"Transaction {self.name} cannot get sufficient funds ({round(return_amount)}) on {current_date} from source {self.source.name}"))
                 else:
-                    return self.source.f_balance
+                    return_amount = self.source.f_balance
+            if self.contributions_only:
+                if return_amount > self.source.contribution_balance:
+                    if self.amount_required:
+                        raise(InsufficientBalanceException(f"Transaction {self.name} cannot get sufficient contribution funds ({round(return_amount)}) on {current_date} from source {self.source.name}, contribution balance {self.source.contribution_balance}"))
+                    else:
+                        return_amount = self.source.contribution_balance
         return return_amount
 
     def setup(self, start_date: date, end_date: date, asset_dict: dict, interest_rates: dict, date_dict: dict):
@@ -134,6 +140,8 @@ class Transaction(DateBaseModel):
             assert(self.source is not None), f"Transaction {self.name} cannot transfer balance above threshold without a defined source"
         if self.asset_maturity:
             assert(self.destination is not None), f"Asset Maturity transaction ({self.name}) must have a valid destination"
+        if self.contributions_only:
+            assert(self.source is not None), f"Source not defined on {self.name}, required for contribution withdrawal limiting"
         assert(not (self.fed_income_tax_payment and self.state_income_tax_payment)), f"Transaction {self.name} cannot be both a payment for state AND federal income taxes"
         if self.fed_income_tax_payment or self.state_income_tax_payment:
             assert(self.destination is None), f"Transaction {self.name} is a tax payment and therefore cannot have a destiation"
