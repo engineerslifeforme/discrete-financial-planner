@@ -9,6 +9,7 @@ from planner.common import (
     DateBaseModel,
     InsufficientBalanceException,
 )
+from planner.life_expectancy import LIFE_EXPECTANCY
 
 class FrequencyEnum(StrEnum):
     monthly = "monthly"
@@ -37,6 +38,7 @@ class Transaction(DateBaseModel):
     category: str = None
     priority: int = 100
     contributions_only: bool = False
+    sepp_birth: date = None
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 
@@ -55,6 +57,11 @@ class Transaction(DateBaseModel):
             source_remaining_balance = self.source.f_balance
             if source_remaining_balance > 0.0:
                 return_amount = source_remaining_balance
+        if self.sepp_birth is not None:
+            import pdb;pdb.set_trace()
+            age = current_date - self.sepp_birth
+            age_factor = LIFE_EXPECTANCY[age]
+            amount = self.source.f_balance / age_factor
         elif self.amount_above is not None:
             float_threshold = float(self.amount_above)
             if self.source.f_balance >= float_threshold:
@@ -145,6 +152,9 @@ class Transaction(DateBaseModel):
         assert(not (self.fed_income_tax_payment and self.state_income_tax_payment)), f"Transaction {self.name} cannot be both a payment for state AND federal income taxes"
         if self.fed_income_tax_payment or self.state_income_tax_payment:
             assert(self.destination is None), f"Transaction {self.name} is a tax payment and therefore cannot have a destiation"
+        if self.sepp_birth is not None:
+            assert(self.source is not None), f"Transaction {self.name} must have a source for a SEPP transaction"
+            assert(self.destination is not None), f"Transaction {self.name} must have a destination for a SEPP transaction"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date

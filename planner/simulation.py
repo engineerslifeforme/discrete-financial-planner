@@ -212,9 +212,11 @@ class Simulation(BaseModel):
             current_month = current_date.month            
             days += 1
 
-        if error_raised is not None:
-            print("Simulation was unable to complete due to error:")
-            print(error_raised)
+            if error_raised is not None:
+                print("Simulation was unable to complete due to error:")
+                print(error_raised)
+                break
+
         print("Summarizing simulation results...")
         if self.federal_income_taxes is not None:
             fed_tax_data = self.federal_income_taxes.summarize()

@@ -82,7 +82,7 @@ class Asset(BaseModel):
         if deposit:
             amount = transaction_amount
         else:
-            if self.min_withdrawal_date is not None:
+            if self.min_withdrawal_date is not None and transaction.sepp_birth is None:
                 if current_date < self.min_withdrawal_date:
                     raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
             amount = -1.0 * transaction_amount
@@ -92,7 +92,7 @@ class Asset(BaseModel):
         if not self.allow_negative_balance:
             if self.f_balance < 0.0:
                 raise(InsufficientBalanceException(f"Asset {self.name} is not allowed to have a negative balance, caused by transaction {transaction.name} on {current_date}"))
-        if self.min_earnings_date is not None:
+        if self.min_earnings_date is not None and transaction.sepp_birth is None:
             if self.contribution_balance < 0.0 and current_date < self.min_earnings_date:
                 raise(PrematureWithdrawalException(f"Withdrawals of earnings not allowed for {self.name} prior to {self.min_earnings_date}, attempted on {current_date}"))
         log = ActionLog(
