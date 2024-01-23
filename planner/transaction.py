@@ -57,11 +57,10 @@ class Transaction(DateBaseModel):
             source_remaining_balance = self.source.f_balance
             if source_remaining_balance > 0.0:
                 return_amount = source_remaining_balance
-        if self.sepp_birth is not None:
-            import pdb;pdb.set_trace()
-            age = current_date - self.sepp_birth
+        elif self.sepp_birth is not None:
+            age = int((current_date - self.sepp_birth).days / 365.0)
             age_factor = LIFE_EXPECTANCY[age]
-            amount = self.source.f_balance / age_factor
+            return_amount = self.source.f_balance / age_factor
         elif self.amount_above is not None:
             float_threshold = float(self.amount_above)
             if self.source.f_balance >= float_threshold:
