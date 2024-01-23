@@ -90,3 +90,10 @@ def future_value(present_value: float, interest: float, periods: int) -> float:
     """
     return present_value*math.pow((1+interest), periods)
 
+def amortorize(period_rate: float, periods: float, amount: float) -> float:
+    # https://www.bankrate.com/mortgages/mortgage-calculator/#calculate-mortgage-payment
+    term_exponential = math.pow((1 + period_rate), periods)
+    numerator = period_rate * term_exponential
+    denominator = term_exponential - 1
+    return amount * (numerator / denominator)
+

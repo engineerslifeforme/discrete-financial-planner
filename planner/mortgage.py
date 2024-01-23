@@ -3,7 +3,7 @@ from datetime import date
 import math
 
 from planner.transaction import Transaction, FrequencyEnum
-from planner.common import round, ZERO
+from planner.common import round, ZERO, amortorize
 
 class Mortgage(Transaction):
     loan_amount: Decimal
@@ -37,11 +37,7 @@ class Mortgage(Transaction):
         :return: value at requested date
         :rtype: float
         """
-        # https://www.bankrate.com/mortgages/mortgage-calculator/#calculate-mortgage-payment
-        term_exponential = math.pow((1 + self.loan_rate_month), self.term_months)
-        numerator = self.loan_rate_month * term_exponential
-        denominator = term_exponential - 1
-        payment = float(self.loan_amount) * (numerator / denominator)
+        payment = amortorize(self.loan_rate_month, float(self.term_months), float(self.loan_amount))
         payment += float(self.extra_principal)
         payment_principal = payment - self.payment_interest
         # Pay against debt/mortgage
