@@ -8,8 +8,11 @@ from planner.common import (
     ZERO, 
     DateBaseModel,
     InsufficientBalanceException,
+    amortorize,
 )
 from planner.life_expectancy import LIFE_EXPECTANCY
+
+sepp_payments = {}
 
 class FrequencyEnum(StrEnum):
     monthly = "monthly"
@@ -39,6 +42,7 @@ class Transaction(DateBaseModel):
     priority: int = 100
     contributions_only: bool = False
     sepp_birth: date = None
+    sepp_interest_rate_yearly: float = None
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 
@@ -57,6 +61,19 @@ class Transaction(DateBaseModel):
             source_remaining_balance = self.source.f_balance
             if source_remaining_balance > 0.0:
                 return_amount = source_remaining_balance
+        elif self.sepp_birth is not None and self.sepp_interest_rate_yearly is not None:
+            try:
+                return_amount = sepp_payments[self.name]
+            except KeyError:
+                # hasn't been calculated yet
+                age = int((current_date - self.sepp_birth).days / 365.0)
+                age_factor = LIFE_EXPECTANCY[age]
+                return_amount = amortorize(
+                    self.sepp_interest_rate_yearly / 100.0,
+                    age_factor,
+                    self.source.f_balance
+                )
+                sepp_payments[self.name] = return_amount
         elif self.sepp_birth is not None:
             age = int((current_date - self.sepp_birth).days / 365.0)
             age_factor = LIFE_EXPECTANCY[age]
@@ -154,6 +171,9 @@ class Transaction(DateBaseModel):
         if self.sepp_birth is not None:
             assert(self.source is not None), f"Transaction {self.name} must have a source for a SEPP transaction"
             assert(self.destination is not None), f"Transaction {self.name} must have a destination for a SEPP transaction"
+            assert(self.frequency == FrequencyEnum.yearly), f"Transaction {self.name} must be yearly frequency for SEPP payments"
+        if self.sepp_interest_rate_yearly is not None:
+            assert(self.sepp_birth is not None), f"Transaction {self.name} a sepp_birth is required for SEPP payments as a reference for life expectancy"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date
@@ -212,5 +232,6 @@ class Transaction(DateBaseModel):
             "fed_tax_deductable": self.fed_tax_deductable,
             "state_tax_deductable": self.state_tax_deductable,
             "category": self.category,
+            "sepp": self.sepp_birth is not None,
         }
 
