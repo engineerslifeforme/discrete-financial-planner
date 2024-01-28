@@ -1,6 +1,5 @@
 from decimal import Decimal
 from datetime import date
-import math
 
 from planner.transaction import Transaction, FrequencyEnum
 from planner.common import round, ZERO, amortorize
@@ -10,6 +9,7 @@ class Mortgage(Transaction):
     loan_rate: float
     term_months: int
     extra_principal: Decimal = ZERO
+    extra_principal_start: date = None
 
     @property
     def loan_rate_month(self):
@@ -18,6 +18,11 @@ class Mortgage(Transaction):
     @property
     def payment_interest(self):
         return float(abs(self.destination.f_balance)) * self.loan_rate_month
+    
+    def setup(self, start_date: date, *args, **kwargs):
+        if self.extra_principal_start is None:
+            self.extra_principal_start = start_date
+        super().setup(start_date, *args, **kwargs)
     
     def check(self):
         """ Assure the mortgage is configured correctly
@@ -38,7 +43,8 @@ class Mortgage(Transaction):
         :rtype: float
         """
         payment = amortorize(self.loan_rate_month, float(self.term_months), float(self.loan_amount))
-        payment += float(self.extra_principal)
+        if current_date >= self.extra_principal_start:
+            payment += float(self.extra_principal)
         payment_principal = payment - self.payment_interest
         # Pay against debt/mortgage
         closeout = False
