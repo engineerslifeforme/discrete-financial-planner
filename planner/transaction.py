@@ -43,6 +43,7 @@ class Transaction(DateBaseModel):
     contributions_only: bool = False
     sepp_birth: date = None
     sepp_interest_rate_yearly: float = None
+    min_withdrawal_date_exception: bool = False
     period_counter: int = 0 # Private
     last_executed: date = None # Private
 

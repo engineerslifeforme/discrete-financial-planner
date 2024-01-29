@@ -82,7 +82,7 @@ class Asset(BaseModel):
         if deposit:
             amount = transaction_amount
         else:
-            if self.min_withdrawal_date is not None and transaction.sepp_birth is None:
+            if self.min_withdrawal_date is not None and transaction.sepp_birth is None and not transaction.min_withdrawal_date_exception:
                 if current_date < self.min_withdrawal_date:
                     raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
             amount = -1.0 * transaction_amount
