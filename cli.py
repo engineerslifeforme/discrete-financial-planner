@@ -1,10 +1,7 @@
 import argparse
 import datetime
-from dateutil.relativedelta import relativedelta 
 from pathlib import Path
-from decimal import Decimal
 
-import yaml
 import pandas as pd
 
 from planner.common import round
@@ -66,7 +63,7 @@ def main(*args, **kwargs):
 
 def valid_date(s):
     try:
-        return datetime.strptime(s, "%Y-%m-%d").date
+        return datetime.datetime.strptime(s, "%Y-%m-%d").date
     except ValueError:
         msg = "not a valid date: {0!r}".format(s)
         raise argparse.ArgumentTypeError(msg)
