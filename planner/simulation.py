@@ -1,14 +1,14 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta 
+from typing import List, Dict, Union
 
 from pydantic import BaseModel
-from typing import List, Dict
 from tqdm import tqdm
 
 from planner.asset import Asset
 from planner.interest_rate import InterestRate
 from planner.common import DEFAULT_INTEREST, ZERO
-from planner.transaction import Transaction, InsufficientBalanceException
+from planner.transaction import Transaction, InsufficientBalanceException, TransactionGroup
 from planner.mortgage import Mortgage
 from planner.income_taxes import IncomeTaxCaculator
 from planner.action_log import ActionLog
@@ -57,7 +57,7 @@ class Simulation(BaseModel):
     end: date
     assets: List[Asset] = []
     interest_rates: List[InterestRate] = []
-    transactions: List[Transaction] = []
+    transactions: List[Union[TransactionGroup, Transaction]] = []
     dates: Dict[str, date] = {}
     mortgages: List[Mortgage] = []
     federal_income_taxes: IncomeTaxCaculator = None
@@ -81,6 +81,7 @@ class Simulation(BaseModel):
         # for asset in self.assets:
         #     asset.get_interest_rate(interest_rate_dict)
         asset_dict = {a.name: a for a in self.assets}
+        self.transactions = self._flatten_transactions()
         for transaction in self.transactions:
             transaction.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
         for mortgage in self.mortgages:
@@ -92,7 +93,16 @@ class Simulation(BaseModel):
             self.state_income_taxes.setup(asset_dict, self.start.year)
             self.state_income_taxes.get_interest_rate(interest_rate_dict)
 
-    def run(self) -> tuple:
+    def _flatten_transactions(self):
+        new_list = []
+        for entry in self.transactions:
+            try:
+                new_list.extend(entry.to_transaction_list())
+            except AttributeError:
+                new_list.append(entry)
+        return new_list
+
+    def run(self, update_func = None) -> tuple:
         """ Run simulation from start to end
 
         :return: number of days in simulation execution, periodic asset state, change logs
@@ -115,7 +125,14 @@ class Simulation(BaseModel):
         error_raised = None
         mortgage_interest = 0.0
         #while current_date <= self.end and error_raised is None:
-        for _ in tqdm(range((self.end - self.start).days), desc="Running simulation for each day..."):
+        
+        total_days = (self.end - self.start).days
+        generator = range(total_days)
+        if update_func is None:
+            generator = tqdm(generator, desc="Running simulation for each day...")
+        else:
+            generator = update_func(generator)
+        for _ in generator:
             next_date = current_date + relativedelta(days=1)
             last_day_of_month = False
             year_ended = False
@@ -183,7 +200,6 @@ class Simulation(BaseModel):
                         action_logger.add_action_log(transaction_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
-                        break
                 if self.state_income_taxes is not None:
                     tax_transaction, deposit = self.state_income_taxes.calculate_taxes(
                         action_logger.action_logs[current_date.year],
@@ -200,7 +216,6 @@ class Simulation(BaseModel):
                         action_logger.add_action_log(transaction_log)
                     except InsufficientBalanceException as e:
                         error_raised = e
-                        break
                 action_logger.set_year(next_date.year)
                 mortgage_interest = 0.0
             

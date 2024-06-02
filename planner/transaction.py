@@ -1,6 +1,7 @@
 from decimal import Decimal
 from strenum import StrEnum
 from datetime import date
+from typing import List, Union, Dict, Any
 
 from pydantic import BaseModel
 
@@ -46,6 +47,11 @@ class Transaction(DateBaseModel):
     min_withdrawal_date_exception: bool = False
     period_counter: int = 0 # Private
     last_executed: date = None # Private
+    raw_data: Dict[str, Any] = None
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.raw_data = kwargs
 
     def get_amount(self, current_date: date, deposit: bool) -> float:
         """ Get transaction amount at current point in time
@@ -157,7 +163,7 @@ class Transaction(DateBaseModel):
     def check(self):
         """ Check the integrity of the Transaction definition
         """
-        assert(self.source is not None or self.destination is not None), "Transactions must have at least a source or destination"
+        assert(self.source is not None or self.destination is not None), f"Transaction {self.name} must have at least a source or destination"
         if self.amount_remaining_balance:
             assert(self.source is not None), f"Transaction {self.name} cannot transfer remaining balance without a defined source"
         if self.amount_above is not None:
@@ -236,3 +242,24 @@ class Transaction(DateBaseModel):
             "sepp": self.sepp_birth is not None,
         }
 
+class TransactionGroup(Transaction):
+    sub_transactions: List[Union["TransactionGroup", Transaction]]
+
+    def to_transaction_list(self, parent_base: dict = None) -> list:
+        if parent_base is None:
+            parent_base = {}
+        parent_copy = parent_base.copy()
+        parent_copy.update(self.raw_data)
+        del parent_copy["sub_transactions"]
+        transaction_list = []        
+        for sub in self.sub_transactions:
+            base_copy = parent_copy.copy()
+            try:
+                transaction_list.extend(sub.to_transaction_list(parent_base=base_copy))
+            except AttributeError:                
+                base_copy.update(sub.raw_data)
+                transaction_list.append(Transaction(**base_copy))
+        return transaction_list
+    
+    def check(self):
+        raise NotImplemented()
