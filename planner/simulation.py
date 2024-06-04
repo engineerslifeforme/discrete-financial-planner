@@ -1,6 +1,7 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta 
 from typing import List, Dict, Union
+from copy import deepcopy
 
 from pydantic import BaseModel
 from tqdm import tqdm
@@ -84,6 +85,18 @@ class Simulation(BaseModel):
         self.transactions = self._flatten_transactions()
         for transaction in self.transactions:
             transaction.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
+            if transaction.donation_factor is not None:
+                donation_transaction = deepcopy(transaction)
+                if transaction.donation_name != "":
+                    donation_transaction.name = transaction.donation_name
+                else:
+                    donation_transaction.name = f"{transaction.name} Donation"
+                donation_transaction.source = transaction.donation_source
+                donation_transaction.destination = None
+                donation_transaction.fed_tax_deductable = True
+                donation_transaction.state_tax_deductable = True
+                donation_transaction.category = "donation"
+                transaction.donation_transaction = donation_transaction
         for mortgage in self.mortgages:
             mortgage.setup(self.start, self.end, asset_dict, interest_rate_dict, self.dates)
         if self.federal_income_taxes is not None:
@@ -153,15 +166,21 @@ class Simulation(BaseModel):
                     # Maybe need to do withdrawal first now that order is fixed?
                     deposit_amount = None
                     withdrawal_amount = None
+                    donation_amount = None
                     if transaction.destination is not None:
                         deposit_amount = transaction.get_amount(current_date, True)
                     if transaction.source is not None:
                         withdrawal_amount = transaction.get_amount(current_date, False)
+                    if transaction.donation_factor is not None:
+                        donation_amount = transaction.get_amount(current_date, False, is_donation=True)
                     if deposit_amount is not None:
                         _, _, transaction_log = transaction.destination.execute_transaction(deposit_amount, transaction, True, current_date)
                         action_logger.add_action_log(transaction_log)
                     if withdrawal_amount is not None:
                         _, _, transaction_log = transaction.source.execute_transaction(withdrawal_amount, transaction, False, current_date)
+                        action_logger.add_action_log(transaction_log)
+                    if donation_amount is not None:
+                        _, _, transaction_log = transaction.donation_transaction.source.execute_transaction(donation_amount, transaction.donation_transaction, False, current_date)
                         action_logger.add_action_log(transaction_log)
                 except InsufficientBalanceException as e:
                     error_raised = e

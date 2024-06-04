@@ -45,15 +45,19 @@ class Transaction(DateBaseModel):
     sepp_birth: date = None
     sepp_interest_rate_yearly: float = None
     min_withdrawal_date_exception: bool = False
+    donation_factor: float = None
+    donation_source: str = None
+    donation_name: str = ""
+    donation_transaction: "Transaction" = None # Private
     period_counter: int = 0 # Private
     last_executed: date = None # Private
-    raw_data: Dict[str, Any] = None
+    raw_data: Dict[str, Any] = None    
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.raw_data = kwargs
 
-    def get_amount(self, current_date: date, deposit: bool) -> float:
+    def get_amount(self, current_date: date, deposit: bool, is_donation: bool = False) -> float:
         """ Get transaction amount at current point in time
 
         :param current_date: date to assess amount
@@ -118,6 +122,8 @@ class Transaction(DateBaseModel):
                         raise(InsufficientBalanceException(f"Transaction {self.name} cannot get sufficient contribution funds ({round(return_amount)}) on {current_date} from source {self.source.name}, contribution balance {self.source.contribution_balance}"))
                     else:
                         return_amount = self.source.contribution_balance
+        if is_donation:
+            return_amount *= self.donation_factor
         return return_amount
 
     def setup(self, start_date: date, end_date: date, asset_dict: dict, interest_rates: dict, date_dict: dict):
@@ -152,6 +158,14 @@ class Transaction(DateBaseModel):
             except TypeError:
                 # has already been assigned so using as dict key will fail
                 pass
+        if self.donation_source is not None:
+            try:
+                self.donation_source = asset_dict[self.donation_source]
+            except KeyError:
+                raise(ValueError(f"Unknown donation source ({self.donation_source}) on transaction {self.name}"))        
+            except TypeError:
+                # has already been assigned so using as dict key will fail
+                pass
         # will cause transaction to happen on first valid date
         self.period_counter = self.frequency_periods
         self.get_interest_rate(interest_rates)
@@ -181,6 +195,8 @@ class Transaction(DateBaseModel):
             assert(self.frequency == FrequencyEnum.yearly), f"Transaction {self.name} must be yearly frequency for SEPP payments"
         if self.sepp_interest_rate_yearly is not None:
             assert(self.sepp_birth is not None), f"Transaction {self.name} a sepp_birth is required for SEPP payments as a reference for life expectancy"
+        if self.donation_factor is not None:
+            assert(self.donation_source is not None), f"Transaction {self.name} has a donation factor but no donation source"
 
     def executable(self, current_date: date) -> bool:
         """ Determine if transaction should be executed on date
