@@ -118,7 +118,7 @@ class IncomeTaxCaculator(InterestBaseModel):
                 taxed_amounts.append((100000000000.0, bracket[1]))
         return taxed_amounts
 
-    def calculate_taxes(self, action_logs: list, year: int, federal: bool, mortgage_interest: float) -> Transaction:        
+    def calculate_taxes(self, action_logs: list, year: int, federal: bool, mortgage_interest: float, simulation_start: date) -> Transaction:        
         """Calculate taxes owed on income
 
         :param action_logs: transactions for the year
@@ -131,11 +131,19 @@ class IncomeTaxCaculator(InterestBaseModel):
         :rtype: Transaction
         """
         taxable_income = sum([a.amount for a in action_logs if a.transaction.income_taxable and a.amount > ZERO])
+        extrapolation_factor = 0.0
+        if year == simulation_start.year:
+            unsimulated_days = simulation_start.timetuple().tm_yday - 1
+            if unsimulated_days > 0:
+                extrapolation_factor = (365 / (365 - unsimulated_days))
+                taxable_income = round(Decimal(extrapolation_factor * float(taxable_income)))
         balance = float(taxable_income)
         if federal:
             deductions = sum([a.amount for a in action_logs if a.transaction.fed_tax_deductable])
         else: # state
             deductions = sum([a.amount for a in action_logs if a.transaction.state_tax_deductable])
+        if year == simulation_start.year and extrapolation_factor != 0.0:
+            deductions = round(Decimal(extrapolation_factor * float(deductions)))
         deductions -= round(Decimal(sum([d.get_amount(year) for d in self.deductions if d.executable(year)])))
         # This is technically not good, losing some precision I htink
         deductions -= round(Decimal(mortgage_interest))

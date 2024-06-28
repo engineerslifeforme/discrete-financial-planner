@@ -209,6 +209,7 @@ class Simulation(BaseModel):
                         current_date.year,
                         True,
                         mortgage_interest,
+                        self.start,
                     )
                     # Pydantic won't allow direct assignment
                     # the way the delayed assignment is handled
@@ -225,6 +226,7 @@ class Simulation(BaseModel):
                         current_date.year,
                         False,
                         mortgage_interest,
+                        self.start,
                     )
                     # Pydantic won't allow direct assignment
                     # the way the delayed assignment is handled
