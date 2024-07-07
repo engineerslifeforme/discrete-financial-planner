@@ -78,7 +78,7 @@ st.plotly_chart(px.line(
     color="type",
 ))
 
-if st.checkbox("Show Expenses", value=True):
+def display_income_or_expenses(data, expenses: bool = True, live_operation: bool = False):
     if live_operation:
         data = pd.DataFrame(action_logs)
         data["date"] = pd.to_datetime(data["date"])
@@ -86,10 +86,17 @@ if st.checkbox("Show Expenses", value=True):
     else:
         data = pd.read_csv("../changes.csv", parse_dates=["date"])
     data = data.loc[~data["asset_maturity"], :]
-    data = data.loc[data["amount"] < 0.00, :]
+    if expenses:
+        data = data.loc[data["amount"] < 0.00, :]
+        account_label = "Sources"
+        data_type = "Expenses"
+    else:
+        data = data.loc[data["amount"] > 0.00, :]
+        account_label = "Destinations"
+        data_type = "Income"
     account_options = data["changed_item"].unique()
     selected_accounts = st.multiselect(
-        "Displayed Account Sources",
+        f"Displayed Account {account_label}",
         account_options,
         default=account_options,
     )
@@ -105,7 +112,7 @@ if st.checkbox("Show Expenses", value=True):
     ))
 
     selected_year = int(st.selectbox(
-        "Expenses for Selected Year",
+        f"{data_type} for Selected Year",
         options=data["year"].unique(),
     ))
     pie_data = data.loc[data["year"] == selected_year, :]
@@ -115,6 +122,12 @@ if st.checkbox("Show Expenses", value=True):
         names="category",
         values="abs_amount",
     ))
+
+if st.checkbox("Show Expenses", value=True):
+    display_income_or_expenses(data)
+
+if st.checkbox("Show Income", value=True):
+    display_income_or_expenses(data, expenses=False)
 
 if st.checkbox("Show Fed Taxes", value=True):
     if live_operation:
