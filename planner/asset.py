@@ -23,6 +23,7 @@ class Asset(BaseModel):
     min_earnings_date: date = None
     category: str = None
     contribution_balance: float = None
+    allow_penalized_early_withdrawals: bool = False
 
     def __init__(self, *args, **kwargs):
         """ Asset initialization
@@ -82,10 +83,14 @@ class Asset(BaseModel):
         if deposit:
             amount = transaction_amount
         else:
+            penalty = 0.0
             if self.min_withdrawal_date is not None and transaction.sepp_birth is None and not transaction.min_withdrawal_date_exception:
                 if current_date < self.min_withdrawal_date:
-                    raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
-            amount = -1.0 * transaction_amount
+                    if self.allow_penalized_early_withdrawals:
+                        penalty = 0.1
+                    else:
+                        raise(PrematureWithdrawalException(f"Withdrawals not allowed for {self.name} prior to {self.min_withdrawal_date}, attempted on {current_date}"))
+            amount = -1.0 * transaction_amount * (1.0 + penalty)
         self.f_balance += amount
         if not transaction.asset_maturity:
             self.contribution_balance += amount
