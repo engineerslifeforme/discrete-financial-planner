@@ -8,5 +8,5 @@ setup(
     author_email='author@gmail.com',
     description='Description of my package',
     packages=find_packages(),    
-    install_requires=['pyyaml', 'pydantic'],
+    install_requires=['pyyaml', 'pydantic', 'loguru'],
 )

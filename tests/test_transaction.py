@@ -1,54 +1,56 @@
 from datetime import date
 
-from planner.transaction import Transaction, TransactionGroup
+import pytest
 
-def test_executable():
-    transaction = Transaction(
-        name='a',
-        start_date=date(2023,12,25),
-        end_date=date(2024,12,25),
+from planner.transactions import DailyTransaction
+from planner.util import ZERO
+from planner.interest_rates import BasicInterestRate
+
+@pytest.fixture
+def default_daily_transaction():
+    return DailyTransaction(
+        name="test daily",
+        frequency="Daily",
     )
-    # Must be between start and end
-    assert(not transaction.executable(date(2023,12,24)))
-    assert(not transaction.executable(date(2024,12,26)))
-    # Must only start on start
-    assert(not transaction.executable(date(2023,12,26)))
-    # Monthly only occurs on day
-    assert(transaction.executable(date(2023,12,25)))
-    assert(not transaction.executable(date(2023,12,26)))
-    assert(transaction.executable(date(2024,1,25)))
-    assert(transaction.executable(date(2024,12,25)))
 
-def test_nesting():
-    tg = TransactionGroup(**{
-        "name": "a",
-        "start_date": date(2023,1,1),
-        "sub_transactions": [
-            {
-                "name": "b",
-                "start_date": date(2025,1,1),
-            },
-        ]
-    })
-    tg.to_transaction_list()
+def test_default_daily(default_daily_transaction):
+    ddt = default_daily_transaction
+    assert(type(ddt) == DailyTransaction)
+    assert(ddt.start is None)
+    assert(ddt.end is None)
+    assert(ddt.first_date == date(date.today().year, 1, 1))
+    assert(ddt.every_x_periods == 1)
+    assert(ddt.base_amount == ZERO)
+    assert(ddt.source_name is None)
+    assert(ddt.destination_name is None)
+    assert(ddt.interest_rate is None)
+    assert(ddt.priority == 100)
+    assert(not ddt.empty_source)
 
-    tg = TransactionGroup(**{
-        "name": "a",
-        "start_date": date(2023,1,1),
-        "end_date": date(2026,1,1),
-        "sub_transactions": [
-            {
-                "name": "d",
-                "destination": "DEF",
-            },
-            {
-                "name": "b",
-                "start_date": date(2025,1,1),
-                "sub_transactions": [
-                    {"name": "c"},
-                ],
-            },
-        ]
-    })
-    tg.to_transaction_list()
-    print("complete")
+def test_get_actions(default_daily_transaction):
+    ddt = default_daily_transaction
+    actions = ddt.get_actions(1)
+    assert(len(actions) == 1)
+
+    action = actions[0]
+    assert(action.description == ddt.name)
+    assert(action.amount == ddt.base_amount)
+    assert(action.priority == ddt.priority)
+    assert(action.source_name is None)
+    assert(action.destination_name is None)
+    assert(not action.empty_source)
+
+def test_load_interest_rate():
+    pass # TODO
+
+def test_interest_amount():
+    dt = DailyTransaction(
+        name="test daily",
+        frequency="Daily",
+        base_amount=100.00,
+        interest_rate=BasicInterestRate(
+            interest_type = "basic",
+            year_rate_percentage=3.65,
+        ),
+    )
+    assert(dt.get_actions(1)[0].amount == 101.00)
