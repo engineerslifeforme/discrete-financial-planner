@@ -1,11 +1,13 @@
 from datetime import date
 from decimal import Decimal
+from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from planner.transaction import Transaction
+from planner.transactions import Transaction
 
-class ActionLog(BaseModel):
+@dataclass
+class ActionLog:
     date: date
     action_type: str
     amount: Decimal

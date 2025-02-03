@@ -14,3 +14,11 @@ tracked as `float`s and actions are reported as rounded
 ## Resources
 
 - https://fitaxguy.com/retire-on-72t-payments/
+- https://datahub.io/core/s-and-p-500
+
+## New TODO
+
+1. Penalized Withdrawals
+2. Taxes
+3. donations
+4. optionally complete withdrawals

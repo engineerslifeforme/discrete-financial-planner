@@ -5,8 +5,9 @@ import math
 import pandas as pd
 import yaml
 from pydantic import BaseModel
+import numpy as np
 
-from planner.transactions import transaction_options
+from planner.transactions import transaction_input_options
 
 IMPORTANT_COLUMNS = [
     "Amount",
@@ -24,15 +25,33 @@ IMPORTANT_COLUMNS = [
     "Priority",
 ]
 
+class UnknownTransaction(BaseModel):
+    transaction: transaction_input_options
+
 def main(workbook_path: Path):
     assert(workbook_path.exists())
     book = pd.ExcelFile(workbook_path)
     transactions = []
     for sheet_name in book.sheet_names:
-        transactions.extend(get_expenses(workbook_path, sheet_name))
+        if sheet_name == "other":
+            transactions.extend(process_other(workbook_path, sheet_name))
+        else:
+            transactions.extend(get_expenses(workbook_path, sheet_name))
     dumped_transactions = [t.model_dump() for t in transactions]
     Path("transactions.yml").write_text(yaml.safe_dump(dumped_transactions))
     print("here")
+
+def process_other(workbook_path: Path, sheet_name: str):
+    data = pd.read_excel(
+        workbook_path,
+        sheet_name
+    )
+    data = data.replace({np.nan: None})
+    expenses = []
+    for entry in data.to_dict(orient="records"):
+        filtered = {k: v for k, v in entry.items() if v is not None}
+        expenses.append(UnknownTransaction(transaction=filtered).transaction)
+    return expenses
 
 def get_expenses(workbook_path: Path, sheet_name: str):
     data = pd.read_excel(
@@ -81,9 +100,8 @@ def extract_expenses(workbook_path: Path, sheet_name: str, header_row_index: int
         sheet_name,
         skiprows=header_row_index+1,
     )
+    data = data.replace({np.nan: None})
     expenses = []
-    class UnknownTransaction(BaseModel):
-        transaction: transaction_options
     for entry in data.loc[~data["Ignore"].isna(), :].to_dict(orient="records"):
         if cbool(entry["Ignore"]):
             continue
@@ -92,12 +110,16 @@ def extract_expenses(workbook_path: Path, sheet_name: str, header_row_index: int
             "start":cdate(entry["Start"]),
             "end":cdate(entry["Stop"]),
             "base_amount":entry["Amount"],
-            "source_name":cstr(entry["Source"]),
-            "destination_name":cstr(entry["Destination"]),
+            "source":cstr(entry["Source"]),
+            "destination":cstr(entry["Destination"]),
             "interest_rate":entry["Growth"],
-            "priority":entry["Priority"],
-            "frequency":entry["Type"],
+            "priority":int(entry["Priority"]),
+            "frequency":entry["Type"].lower(),
             "first_date": cdate(entry["Date"]),
+            "category": sheet_name,
+            "fed_tax_deductible": entry["Fed Tax Deductible"],
+            "fed_tax_payment": entry["Federal Tax Payment"],
+            "every_x_periods": round(1/entry.get("Occurences", 1)),
         }).transaction)
     return expenses
 

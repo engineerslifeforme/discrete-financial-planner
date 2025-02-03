@@ -3,3 +3,4 @@ pandas
 tqdm
 pyyaml
 pydantic
+yamlpath

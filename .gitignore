@@ -6,3 +6,5 @@
 !example.yml
 *.csv
 *_private
+*.xlsx
+.DS_Store

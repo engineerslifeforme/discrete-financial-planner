@@ -1,1 +1,7 @@
-from planner.interest_rates.basic import BasicInterestRate
+from typing import Union
+
+from planner.interest_rates.basic import BasicInterestRate, BasicInterestRateInput
+from planner.interest_rates.historical import HistoricalInterestRate, HistoricalInterestRateInput
+
+interest_rate_options = Union[BasicInterestRate, HistoricalInterestRate]
+interest_rate_input_options = Union[BasicInterestRateInput, HistoricalInterestRateInput]

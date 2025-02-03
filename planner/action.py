@@ -1,12 +1,15 @@
-from datetime import date
-from typing import Optional
+from dataclasses import dataclass, asdict
 
-from pydantic import BaseModel
-
-class Action(BaseModel):
-    description: str
-    amount: float = 0.0
+@dataclass
+class Action:
+    amount: float    
+    asset_name: str
+    fed_taxable: bool = False
+    fed_tax_payment: bool = False
+    fed_tax_deductible: bool = False
+    description: str = "Default Description"
+    category: str = "Default"
     priority: int = 200
-    source_name: Optional[str] = None
-    destination_name: Optional[str] = None
-    empty_source: bool = False
+
+    def dict(self):
+        return {k: str(v) for k, v in asdict(self).items()}

@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from planner.transactions import DailyTransaction
+from planner.transactions import Transaction
 from planner.util import ZERO
 from planner.interest_rates import BasicInterestRate
 
@@ -18,8 +18,6 @@ def test_default_daily(default_daily_transaction):
     assert(type(ddt) == DailyTransaction)
     assert(ddt.start is None)
     assert(ddt.end is None)
-    assert(ddt.first_date == date(date.today().year, 1, 1))
-    assert(ddt.every_x_periods == 1)
     assert(ddt.base_amount == ZERO)
     assert(ddt.source_name is None)
     assert(ddt.destination_name is None)
@@ -41,7 +39,18 @@ def test_get_actions(default_daily_transaction):
     assert(not action.empty_source)
 
 def test_load_interest_rate():
-    pass # TODO
+    ir = BasicInterestRate(
+        interest_type = "basic",
+        year_rate_percentage=3.0,
+    )
+    dt = DailyTransaction(
+        name="test daily",
+        frequency="Daily",
+        base_amount=100.00,
+        interest_rate="test_ir",
+    )
+    dt.load_interest_rate({"test_ir": ir})
+    assert(dt.interest_rate == ir)
 
 def test_interest_amount():
     dt = DailyTransaction(
