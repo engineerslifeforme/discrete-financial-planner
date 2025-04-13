@@ -83,4 +83,3 @@ class HistoricalInterestRateInput(BaseInterestRateInput):
 if __name__ == "__main__":
     hist = HistoricalInterestRate(data_path=Path("datahub_io.csv"))
     hist.initialize(config_path=Path("."), simulation_start_date=date(2024, 1, 1))
-    print("debug")

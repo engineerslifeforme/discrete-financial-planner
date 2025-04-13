@@ -10,21 +10,17 @@ from planner.util import future_value, future_interest, interest_of_x
 @dataclass
 class BaseInterestRate:
 
-    def initialize(self, **kwargs):
+    def initialize(self, *args, **kwargs):
         pass
 
     def daily_rate(self, start_date: date = None) -> float:
         raise NotImplementedError()
 
     def inflate(self, amount: Decimal, start_date: date = None, days: int = 1) -> float:
-        if days > 1:
-            print("debug")
         float_amount = float(amount)
         return future_value(float_amount, self.daily_rate(start_date=start_date), days)
     
     def interest(self, amount: Decimal, start_date: date = None, days: int = 1) -> float:
-        if days > 1:
-            print("debug")
         float_amount = float(amount)
         return future_interest(float_amount, self.daily_rate(start_date=start_date), days)
 
@@ -33,8 +29,7 @@ class BasicInterestRate(BaseInterestRate):
     year_rate_percentage: float
     _daily_interest: Optional[float] = None
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __post_init__(self, *args, **kwargs):
         self._daily_interest = interest_of_x(self.year_rate_percentage / 100.0, 365)
 
     def daily_rate(self, **kwargs) -> float:
