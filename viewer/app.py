@@ -7,8 +7,8 @@ import pandas as pd
 from tax_viewer import view_taxes
 from interest_viewer import view_interest
 
-#asset_data = pd.read_csv("../asset_log.csv")
-#action_data = pd.read_csv("../action_log.csv", parse_dates=["date"])
+asset_data = pd.read_csv("../asset_log.csv")
+action_data = pd.read_csv("../action_log.csv", parse_dates=["date"])
 
 """ # Plan Results Viewer"""
 

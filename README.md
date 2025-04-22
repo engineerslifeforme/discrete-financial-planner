@@ -4,6 +4,19 @@ actions may not add up to states because states are
 tracked as `float`s and actions are reported as rounded
 `Decimal`.
 
+## Install
+
+```bash
+pip install -f requirements.txt
+pip install -e .
+```
+
+## Run
+
+```bash
+planner example_plan.yml
+```
+
 ## TODO
 
 1. Tax deductions report

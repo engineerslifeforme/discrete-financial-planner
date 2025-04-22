@@ -18,7 +18,7 @@ from planner.taxes import FederalTax, FederalTaxInput
 class ActionManager:
     assets: List[asset_options]
     transactions: List[transaction_options]
-    fed_tax_handler: FederalTax
+    fed_tax_handler: Optional[FederalTax] = None
 
     def __post_init__(self):
         self._action_log_file = open("action_log.csv", "w")
@@ -40,16 +40,18 @@ class ActionManager:
     def load_assets(self):
         for transaction in self.transactions:
             transaction.load_assets(self._asset_map)
-        self.fed_tax_handler.transaction.load_assets(self._asset_map)
+        if self.fed_tax_handler is not None:
+            self.fed_tax_handler.transaction.load_assets(self._asset_map)
         
 
     def day_iterate(self, current_date: date, days: int):
         valid_transactions = [t for t in self.transactions if t.is_valid(current_date)]
-        if self.fed_tax_handler.is_tax_day(current_date):
-            tax_transaction = self.fed_tax_handler.get_taxes_transaction()
-            if tax_transaction is not None:
-                valid_transactions.append(tax_transaction)
-                valid_transactions.sort(key=lambda x: x.priority)
+        if self.fed_tax_handler is not None:
+            if self.fed_tax_handler.is_tax_day(current_date):
+                tax_transaction = self.fed_tax_handler.get_taxes_transaction()
+                if tax_transaction is not None:
+                    valid_transactions.append(tax_transaction)
+                    valid_transactions.sort(key=lambda x: x.priority)
         for transaction in valid_transactions:
             # if "Sepp" in transaction.name:
             #     print("debug")
@@ -64,7 +66,8 @@ class ActionManager:
                 action_log_data = action.dict()
                 action_log_data["date"] = current_date
                 self._actions_to_write.append(action_log_data)
-                self.fed_tax_handler.process_action(action, current_date)
+                if self.fed_tax_handler is not None:
+                    self.fed_tax_handler.process_action(action, current_date)
     
     def save_state(self, date: date):
         for asset in self.assets:
@@ -79,7 +82,8 @@ class ActionManager:
     
     def close_log(self):
         self.log()
-        self.fed_tax_handler.close()
+        if self.fed_tax_handler is not None:
+            self.fed_tax_handler.close()
         self._action_log_file.close()
 
     def _build_asset_map(self):
@@ -92,12 +96,13 @@ class ActionManager:
     def load_interest_rates(self, *args, **kwargs):
         for transaction in self.transactions:
             transaction.load_interest_rate(*args, **kwargs)
-        self.fed_tax_handler.load_interest_rate(*args, **kwargs)
+        if self.fed_tax_handler is not None:
+            self.fed_tax_handler.load_interest_rate(*args, **kwargs)
 
 class ActionManagerInput(BaseModel):
-    assets: List[Union[asset_input_options, Path]]
-    transactions: List[Union[transaction_input_options, Path]]
-    fed_tax_handler: FederalTaxInput
+    assets: Optional[List[Union[asset_input_options, Path]]] = []
+    transactions: Optional[List[Union[transaction_input_options, Path]]] = []
+    fed_tax_handler: Optional[FederalTaxInput] = None
     
     def load_paths(self, **kwargs):
         self.transactions = load_list_path(
@@ -112,10 +117,14 @@ class ActionManagerInput(BaseModel):
         )
 
     def to_dc_model(self):
+        if self.fed_tax_handler is not None:
+            fed_tax_handler=self.fed_tax_handler.to_dc_model()
+        else:
+            fed_tax_handler=None
         return ActionManager(
             transactions=[t.to_dc_model() for t in self.transactions],
             assets=[a.to_dc_model() for a in self.assets],
-            fed_tax_handler=self.fed_tax_handler.to_dc_model(),
+            fed_tax_handler=fed_tax_handler,
         )
     
     @field_serializer('assets')

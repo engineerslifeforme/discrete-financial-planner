@@ -17,6 +17,8 @@ from planner.plan_editor import PlanEditor
 
 def yaml_load(file_path: Path) -> dict:
     data = yaml.safe_load(file_path.read_text())
+    if data is None:
+        data = {}
     data["config_path"] = file_path
     return data
 
@@ -62,7 +64,7 @@ class Simulation:
 class SimulationInput(BaseModel):
     start: Optional[date] = date.today()
     end: Optional[date] = date.today() + timedelta(weeks=52 * 10)
-    action_manager: ActionManagerInput
+    action_manager: Optional[ActionManagerInput] = ActionManagerInput()
     labeled_dates: Optional[Dict[str, date]] = {}
     interest_rates: Optional[Dict[str, interest_rate_input_options]] = {}
     config_path: Optional[Path] = None # Should be private
@@ -128,11 +130,15 @@ class Input(BaseModel):
         sim = cls(input=data)        
         return sim.input.to_dc_model()
 
-if __name__ == "__main__":
+def main():
     import sys
-    #path = Path(sys.argv[1])
-    path = Path("payne_private_20250111/base_plan/new_private.yml")
-    # path = Path("payne_private_20250111/early_3.yml")
+    path = Path(sys.argv[1])
     sim = Input.file_load(path)
     sim.run()
-    #print("here")
+
+if __name__ == "__main__":
+    import sys
+    path = Path("example_plan/plan.yml")
+    sim = Input.file_load(path)
+    sim.run()
+    print("here")

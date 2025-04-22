@@ -58,7 +58,7 @@ def future_interest(present_value: float, interest: float, periods: int) -> floa
 
     Modified version of future value for interest only
     """
-    return present_value*math.pow((interest), periods)
+    return future_value(present_value, interest, periods) - present_value
 
 def load_list_path(input_list: list, desired_types, root: Path = "."):
     class PathList(BaseModel):

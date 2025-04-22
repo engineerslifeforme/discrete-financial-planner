@@ -15,7 +15,7 @@ class Maturation(Transaction):
     def _get_amount(self, days: int, current_date: date) -> float:
         balance = self.destination.current_balance
         if balance > 0.0:
-            amount = self.interest_rate.interest(balance, days=days, start_date=current_date)
+            amount = self.interest_rate.interest(balance, days=1, start_date=current_date)
             return amount
         return 0.0
 

@@ -8,5 +8,10 @@ setup(
     author_email='author@gmail.com',
     description='Description of my package',
     packages=find_packages(),    
-    install_requires=['pyyaml', 'pydantic', 'loguru'],
+    install_requires=['pyyaml', 'pydantic'],
+    entry_points={
+        'console_scripts': [
+            'planner=planner.simulation:main',
+        ],
+    },
 )

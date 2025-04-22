@@ -36,6 +36,7 @@ class Transaction(FrequencyModel):
             "contribution": self.contribution_only,
         }
         self._deposit_kwargs = {}
+        assert(not (self.destination is None and self.source is None)), f"Transaction `{self.name}` needs at least a source or destination."
 
     def set_base_amount(self, amount: Decimal):
         self.base_amount = amount
