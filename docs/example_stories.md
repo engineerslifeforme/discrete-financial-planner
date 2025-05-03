@@ -327,7 +327,10 @@ interest_rates:
 
 Now the `action_log.csv` is getting very busy.
 
-## Story #2 - Mortgages and Inflation
+## Story #2 - Mortgages, Debts and Inflation
+
+**Story #2 is a new example plan (`example_plan/plan_2.yaml`) and
+does not build on Story #1 for simplicity.**
 
 Mortgages are obviously complicated from the calculation of each
 payment's principal and interest which is paying down a balance
@@ -336,3 +339,151 @@ purchased.  Mortgages will also be our example to show why
 we might want to include the extra realism of inflation in
 our simulation since a fixed rate mortgage payment does not
 increase with inflation.
+
+### Debts and Mortgage
+
+First, a mortgage is payment plan to pay back a loan which is a
+debt.  Let's capture the debt which would be the remaining balance
+on the mortgage.  Let's say the original loan was $300,000,
+and the current remaining balance is $300,000, i.e. no payments
+have been made.
+
+**Note the negative balance on the debt.**
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+action_manager:
+    assets:
+        - name: Home Loan
+          type: debt
+          starting_balance: -300000.00
+```
+
+Now we obviously need an account from which to make payments:
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 500000.00
+        - name: Home Loan
+          type: debt
+          starting_balance: -300000.00
+```
+
+A mortgage is defined similarly to a normal transaction, i.e.
+it has a source, destination and name, but it has has additional
+required fields:
+
+- `name` - Name of the mortgage.
+- `source` - Source asset name from which payments will be made.
+- `destination` - Debt name to be paid down, i.e. the remaining balance
+- `loan_amount` - The original loan amount regardless of remaining balance.
+- `loan_rate` - Yearly interest rate
+- `term_months` - Original loan term length in months, e.g. 30 years = 360 months
+
+The frequency of mortgage payments is Monthly and cannot be
+changed.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+        - name: Home Loan
+          type: debt
+          starting_balance: -350000.00
+    transactions:
+        - name: Home Mortgage
+          source: Checking Account Green
+          destination: Home Loan
+          loan_amount: 350000.00
+          loan_rate: 5.0
+          term_months: 360
+```
+
+In the `action_log.csv` we can see 3 transactions each month:
+
+1. A debit of the principal amount from the source
+2. A debit of the interest amount from the source
+3. A deposit of the principal amount at the destination (the debt)
+
+The amount of the principal and interest portions are dynamically
+calculated based on the remaining balance of the debt and the loan
+terms.
+
+In the `asset_log.csv`, we can see the balance of the source reducing
+at a faster rate, and we can see the balance of the destination increasing
+toward $0 at a slower rate.  We see the debt balance reach $0 exactly
+30 years from the start of the simulation which was the start
+of the payments.  Also of note, that it took almost $675,000 from the
+account to pay the $350,000 debt.
+
+#### Extra Principal Payments
+
+Making extra payments toward the principal of the loan can reduce
+the total interest paid.  Extra payments can be added as simple transactions:
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+        - name: Home Loan
+          type: debt
+          starting_balance: -350000.00
+    transactions:
+        - name: Home Mortgage
+          source: Checking Account Green
+          destination: Home Loan
+          loan_amount: 350000.00
+          loan_rate: 5.0
+          term_months: 360
+        - name: Home Loan Extra Principal
+          source: Checking Account Green
+          destination: Home Loan
+          base_amount: 500.00
+          frequency: monthly
+```
+
+#### In Progress Mortgages
+
+The planner can handle mortgages that are in progress at the start
+of the simulation.  The only change that is necessary is to populate
+an up to date remaining balance on the debt.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+        - name: Home Loan
+          type: debt
+          starting_balance: -300000.00
+    transactions:
+        - name: Home Mortgage
+          source: Checking Account Green
+          destination: Home Loan
+          loan_amount: 350000.00
+          loan_rate: 5.0
+          term_months: 360
+```
+
+**Only the debt `starting_balance` was changed from the previous
+example.**
+
+We can the debt is repaid much earlier in the `asset_log.csv`: year 21
+of the simulation.

@@ -1,0 +1,99 @@
+start: 2025-01-01
+end: 2074-12-31
+interest_rates:
+  Market:
+    year_rate_percentage: 5.0 # 5% (a common choice for inflation adjusted)
+    interest_type: basic
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 5000.00
+        - name: Kid Education Savings
+          type: asset
+    transactions:
+        - name: Income Dog
+          base_amount: 5000.00
+          destination: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-28 # Toward the end of the month, not greater than 28
+        - name: Income Cat
+          base_amount: 2500.00
+          destination: Checking Account Green
+          frequency: biweekly
+          first_date: 2025-01-03 # First Friday
+        - name: Groceries
+          base_amount: 400.00
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-28 # Let's buy groceries on pay day
+        - name: Rent
+          base_amount: 2000.00
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-28 # On pay day again
+        - name: Netflix
+          base_amount: 20.00
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-15 # Somewhere in the middle
+        - name: Electricity
+          base_amount: 80.00 # An average over the year to keep things simple
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-20
+        - name: Water
+          base_amount: 70.00 # An average over the year to keep things simple
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-20
+        - name: Natural Gas
+          base_amount: 70.00 # An average over the year to keep things simple
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-20
+        - name: Car Gas
+          base_amount: 70.00 # An average over the year to keep things simple
+          source: Checking Account Green
+          frequency: weekly
+        - name: Car Insurance
+          base_amount: 1000.00
+          source: Checking Account Green
+          frequency: monthly
+          every_x_periods: 6 # every 6 months
+          first_date: 2025-04-10 # In April and Oct
+        - name: Renters Insurance
+          base_amount: 1500.00
+          source: Checking Account Green
+          frequency: yearly
+          first_date: 2025-08-08 # Yearly in August
+        - name: Washing Machine Replacement
+          base_amount: 1000.00
+          source: Checking Account Green
+          frequency: yearly
+          every_x_periods: 10 # new washer every 10 years
+          first_date: 2029-01-01 # First replacement new years! 2029
+        - name: Day Care
+          base_amount: 500.00
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2025-01-05
+          end: 2027-07-31 # Kid will be 4 and ready for Pre-K!
+        - name: Pre-K
+          base_amount: 300.00 # Thankfully Pre-K is a little cheaper
+          source: Checking Account Green
+          frequency: monthly
+          first_date: 2027-08-05 # First replacement new years! 2029
+          start: 2027-07-31 # Start after day care
+          end: 2028-07-31 # Ends after a year
+        - name: Kid Education Savings Transfer
+          base_amount: 100.00
+          source: Checking Account Green
+          destination: Kid Education Savings
+          frequency: monthly
+          first_date: 2025-01-28 # End of the month
+          end: 2045-07-31 # Let's give them until they are in their earlier 20's
+        - name: Education Savings Maturation
+          maturation: True
+          interest_rate: Market
+          destination: Kid Education Savings

@@ -1,0 +1,22 @@
+start: 2025-01-01
+end: 2074-12-31
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+        - name: Home Loan
+          type: debt
+          starting_balance: -350000.00
+    transactions:
+        - name: Home Mortgage
+          source: Checking Account Green
+          destination: Home Loan
+          loan_amount: 350000.00
+          loan_rate: 5.0
+          term_months: 360
+        - name: Home Loan Extra Principal
+          source: Checking Account Green
+          destination: Home Loan
+          base_amount: 500.00
+          frequency: monthly

@@ -4,6 +4,7 @@
 .pytest*
 *.yml
 !example.yml
+!example_plan/*
 *.csv
 *_private
 *.xlsx
