@@ -498,7 +498,7 @@ example.**
 We can see the debt is repaid much earlier in the `asset_log.csv`: year 21
 of the simulation.
 
-### Inflation and Interest
+### Renting, Inflation and Interest
 
 A few reasons one often chooses to purchase a home over renting:
 
@@ -601,3 +601,60 @@ action_manager:
 
 Now, not only does the simulation complete, but the account
 ends with $50,000,000.
+
+### Mortgage Revisited with Inflation
+
+The appreciation of a home is dependent on many factors
+many of which are at best difficult to predict.  Assuming
+appreciation with inflation is a relatively conservative
+approach.  The previous examples did not account for the
+asset gained when intiating a loan, so let's fix that.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+        - name: Home Loan
+          type: debt
+          starting_balance: -350000.00
+        - name: Home
+          type: asset
+          starting_balance: 450000.00 # Assumes a 25% down payment
+    transactions:
+        - name: Home Mortgage
+          source: Checking Account Green
+          destination: Home Loan
+          loan_amount: 350000.00
+          loan_rate: 5.0
+          term_months: 360
+        - name: Home Maturation
+          maturation: True
+          interest_rate: Inflation
+          destination: Home
+```
+
+Even though the home is a physical asset, appreciating its value
+is once again accomplished with a transaction.
+
+We can see in the `asset_log.csv` that when the loan reaches a
+$0 balance, the home has appreciated to over $1,000,000.
+
+**The examples above could be interpretted as a clear superiority
+for the mortgage vs renting, but please do not forget that property
+taxes and home maintanence are costs that will continue forever
+with inflation.**
+
+## Story #3 - Taxes and Retirement
+
+For basic simulations, taxes can be represented as a simple
+transaction.
+
+## Story #4 - Other Tricks
