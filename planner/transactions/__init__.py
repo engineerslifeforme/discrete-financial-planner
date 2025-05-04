@@ -6,6 +6,7 @@ from planner.transactions.mortgage import Mortgage, MortgageInput
 from planner.transactions.maturation import Maturation, MaturationInput
 from planner.transactions.maintain import MaintainBalance, MaintainBalanceInput
 from planner.transactions.sepp import Sepp, SeppInput
+from planner.transactions.debt_payment import DebtPayment, DebtPaymentInput
 
-transaction_options = Union[Mortgage, MaintainBalance, Maturation, Sweep, Sepp, Transaction]
-transaction_input_options = Union[MortgageInput, MaintainBalanceInput, MaturationInput, SweepInput, SeppInput, TransactionInput]
+transaction_options = Union[Mortgage, MaintainBalance, Maturation, Sweep, Sepp, DebtPayment, Transaction]
+transaction_input_options = Union[MortgageInput, MaintainBalanceInput, MaturationInput, SweepInput, SeppInput, DebtPaymentInput, TransactionInput]

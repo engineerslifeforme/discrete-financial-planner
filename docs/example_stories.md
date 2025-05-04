@@ -344,8 +344,8 @@ increase with inflation.
 
 First, a mortgage is payment plan to pay back a loan which is a
 debt.  Let's capture the debt which would be the remaining balance
-on the mortgage.  Let's say the original loan was $300,000,
-and the current remaining balance is $300,000, i.e. no payments
+on the mortgage.  Let's say the original loan was $350,000,
+and the current remaining balance is $350,000, i.e. no payments
 have been made.
 
 **Note the negative balance on the debt.**
@@ -357,7 +357,7 @@ action_manager:
     assets:
         - name: Home Loan
           type: debt
-          starting_balance: -300000.00
+          starting_balance: -350000.00
 ```
 
 Now we obviously need an account from which to make payments:
@@ -369,10 +369,10 @@ action_manager:
     assets:
         - name: Checking Account Green
           type: asset
-          starting_balance: 500000.00
+          starting_balance: 700000.00
         - name: Home Loan
           type: debt
-          starting_balance: -300000.00
+          starting_balance: -350000.00
 ```
 
 A mortgage is defined similarly to a normal transaction, i.e.
@@ -415,6 +415,8 @@ In the `action_log.csv` we can see 3 transactions each month:
 2. A debit of the interest amount from the source
 3. A deposit of the principal amount at the destination (the debt)
 
+Adding #1 and #2 will produce the normal mortgage payment one would make
+(minus any mortgage insurance and taxes in escrow).
 The amount of the principal and interest portions are dynamically
 calculated based on the remaining balance of the debt and the loan
 terms.
@@ -454,7 +456,15 @@ action_manager:
           destination: Home Loan
           base_amount: 500.00
           frequency: monthly
+          only_if_destination_balance_negative: true
 ```
+
+The `only_if_destination_balance_negative` setting assures that payments
+will only be made while the loan balance is negative.
+
+We can see in the logs that by paying an extra $500 per month, the loan
+was paid off about 11 years early and saved about $132,000 compared
+to simply paying the scheduled payment.
 
 #### In Progress Mortgages
 
@@ -485,5 +495,109 @@ action_manager:
 **Only the debt `starting_balance` was changed from the previous
 example.**
 
-We can the debt is repaid much earlier in the `asset_log.csv`: year 21
+We can see the debt is repaid much earlier in the `asset_log.csv`: year 21
 of the simulation.
+
+### Inflation and Interest
+
+A few reasons one often chooses to purchase a home over renting:
+
+1. Homes typically appreciate in value
+2. Once the mortgage is paid, housing expenses go down.
+3. Rents continue to rise with inflation.
+
+We cannot evaluate these effects without taking into account
+inflation.
+
+First, let's look at how rent payments may inflate over time.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+    transactions:
+        - name: Rent
+          source: Checking Account Green
+          base_amount: 1500.00
+          interest_rate: Inflation
+          frequency: monthly
+```
+
+Rent starting in the simulation at $1,500 per month increasing
+with inflation (3% per year).  Taking a look at the `action_log.csv`
+we can see that the first payment was $1,500, but the payment
+increases each time.  The first payment of 2026 is $1,545 (3% more).
+This simulation actually ends early (after only 25 years) because we
+run out of money
+in 2050 where the rent payment has increased to $3,212.44.  This
+seems exceptionally concerning in this simple simulation. 
+Fortunately, any type of income will also be increasing with
+inflation, but it also important that we not simply leave $700,000
+in an account that does not appreciate (or appreciates VERY slowly
+like many checking accounts).  Let's see the difference if the
+account is appreciating with inflation.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+    transactions:
+        - name: Rent
+          source: Checking Account Green
+          base_amount: 1500.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Checking Account Green Maturation
+          maturation: True
+          interest_rate: Inflation
+          destination: Checking Account Green
+```
+
+Our money lasted 13 additional years!  Let's see if we were
+to get historical stock market returns:
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+  Market: 
+    interest_type: basic
+    year_rate_percentage: 10.0
+action_manager:
+    assets:
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 700000.00
+    transactions:
+        - name: Rent
+          source: Checking Account Green
+          base_amount: 1500.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Checking Account Green Maturation
+          maturation: True
+          interest_rate: Market
+          destination: Checking Account Green
+```
+
+Now, not only does the simulation complete, but the account
+ends with $50,000,000.
