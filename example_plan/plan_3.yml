@@ -10,6 +10,16 @@ interest_rates:
     interest_type: basic
     year_rate_percentage: 10.0
 action_manager:
+    fed_tax_handler:
+      payment_source: Checking Account Green
+      interest_rate: Inflation
+      credits:
+        - name: Child Tax Credit
+          amount: 2000.00
+          stop: 2037-12-31
+      deductions:
+        - name: State Taxes Paid
+          amount: 2000.00
     assets:
         - name: Gross Pay Account
           type: asset
@@ -51,6 +61,14 @@ action_manager:
           source: Gross Pay Account
           destination: Checking Account Green
           sweep_greater_than: 0.00 # This will assure the Gross Pay Account does not retain a balance
+          fed_taxable: true # All money after pre-tax expenses is taxable
+        - name: Federal Tax Witholding
+          source: Checking Account Green
+          base_amount: 1000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+          fed_tax_payment: true
         - name: Living Expenses
           source: Checking Account Green
           base_amount: 2000.00
@@ -65,3 +83,11 @@ action_manager:
           destination: Checking Account Green
           maintain_balance: 100000.00
           start: RETIREMENT
+          fed_taxable: true
+        - name: Non-Profit
+          source: Checking Account Green
+          base_amount: 1000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+          fed_tax_deductible: true

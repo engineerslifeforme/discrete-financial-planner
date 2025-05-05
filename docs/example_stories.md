@@ -666,7 +666,9 @@ that is somewhat fake to represent gross pay.  From that fake
 account we can remove all the things that occur prior to take
 home pay, e.g. taxes, retirement, insurance, etc.  Since this is
 a fake account, we don't want it to carry a balance, so we will
-use some techniques to achieve that.
+use some techniques to achieve that.  The `sweep_greater_than`
+flag will be used to move any balance above `0.0` out of the
+account monthly.
 
 ```yaml
 start: 2025-01-01
@@ -836,6 +838,158 @@ when it occurs if it is important.
 
 For basic simulations, taxes can be represented as a simple
 transaction, but it can become a little cumbersome as the
-complexity rises.
+complexity rises.  We need to know a few things in order to
+track taxes:
+
+1. Where taxes will be paid from (or refunded to)
+2. Any credits [OPTIONAL]
+3. Any deductions [OPTIONAL]
+4. Identify any witholding transactions [OPTIONAL]
+5. Identify taxable transactions
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+labeled_dates:
+  RETIREMENT: 2040-01-01
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+  Market: 
+    interest_type: basic
+    year_rate_percentage: 10.0
+action_manager:
+    fed_tax_handler:
+      payment_source: Checking Account Green
+      interest_rate: Inflation
+      credits:
+        - name: Child Tax Credit
+          amount: 2000.00
+          stop: 2037-12-31
+      deductions:
+        - name: State Taxes Paid
+          amount: 2000.00
+    assets:
+        - name: Gross Pay Account
+          type: asset
+          starting_balance: 0.00
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 0.00
+        - name: Retirement
+          type: asset
+          starting_balance: 0.00
+    transactions:
+        - name: Gross Pay
+          destination: Gross Pay Account
+          base_amount: 8000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+        - name: Employee Retirement Contribution
+          source: Gross Pay Account
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Employer Retirement Contribution # Some employers match contributions, FREE MONEY!
+          # No source here
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Health Insurance Premium
+          source: Gross Pay Account
+          base_amount: 100.00
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Take Home Pay
+          source: Gross Pay Account
+          destination: Checking Account Green
+          sweep_greater_than: 0.00 # This will assure the Gross Pay Account does not retain a balance
+          fed_taxable: true # All money after pre-tax expenses is taxable
+        - name: Living Expenses
+          source: Checking Account Green
+          base_amount: 2000.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Retirement Maturation
+          maturation: True
+          interest_rate: Market
+          destination: Retirement
+```
+
+We now have a new file `tax_log.csv` where we can see taxes owed
+each year.  We can also see that the taxes owed increases until
+retirement where there is no longer any income.  We can also
+see the tax payments occur in the `action_log.csv`.  Lastly,
+note the `interest_rate: Inflation` on the `fed_tax_handler`
+which will inflat the tax brackets over time.  The example
+above once again leaves the retirement withdrawals which are
+also taxable.
+
+```yaml
+# Add to above example
+        - name: Retirement Withdrawal
+          source: Retirement
+          destination: Checking Account Green
+          maintain_balance: 100000.00
+          start: RETIREMENT
+          fed_taxable: true
+```
+
+Now we see paying taxes again in the later years when retirement
+withdrawals become necessary.
+
+The US government requires that taxes be witheld along throughout
+the year, so lets add that transaction:
+
+```yaml
+# Insert in transactions list
+        - name: Federal Tax Witholding
+          source: Checking Account Green
+          base_amount: 1000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+          fed_tax_payment: true # This amount will go toward taxes paid for the year
+```
+
+In the `tax_log.csv`, we can now see more reasonable values
+for `taxes_owed`.
+
+**Note that tax witholdings are often paid by the employer on behalf
+of the employee, so they do not actually make it to the checking
+account as represented here.  If you were to withdraw them from
+the `Gross Pay Account` though, they would not be counted in the
+taxable_income transaction resulting in an incorrect taxable income
+calculation.  If this transaction from the checking account is
+undesirable in the output data, we can make yet another fake account
+(e.g. `Taxable Income Account`) to put the money in first before
+sweeping into the checking account.  Deposits into this taxable
+account would be taxed then the remainder would be swept into
+the real checking account.  This extra complexity would make the
+transactions from the checking account more realistic.**
+
+In addition to deferring taxes with a retirement account, we
+can also reduce taxes owed by donating to appropriate organizations.
+
+```yaml
+# Insert in transactions list
+        - name: Non-Profit
+          source: Checking Account Green
+          base_amount: 1000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+          fed_tax_deductible: true # This will reduce taxable income.
+```
+
+Now we can see in `tax_log.csv` an expected refund due to overpaying
+taxes throughout the year.
 
 ## Story #4 - Other Tricks
