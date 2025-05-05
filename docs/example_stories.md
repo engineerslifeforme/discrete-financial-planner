@@ -654,7 +654,188 @@ with inflation.**
 
 ## Story #3 - Taxes and Retirement
 
+Taxes are a big part of retirement planning, so they will
+be tackled in a single section.
+
+### Retirement
+
+Unlike what was shown in an earlier example, 10% returns
+is highly unlikely on a checking account.  For both taxes
+and retirement, it is going to be useful to create an account
+that is somewhat fake to represent gross pay.  From that fake
+account we can remove all the things that occur prior to take
+home pay, e.g. taxes, retirement, insurance, etc.  Since this is
+a fake account, we don't want it to carry a balance, so we will
+use some techniques to achieve that.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+  Market: 
+    interest_type: basic
+    year_rate_percentage: 10.0
+action_manager:
+    assets:
+        - name: Gross Pay Account
+          type: asset
+          starting_balance: 0.00
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 0.00
+        - name: Retirement
+          type: asset
+          starting_balance: 0.00
+    transactions:
+        - name: Gross Pay
+          destination: Gross Pay Account
+          base_amount: 8000.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Employee Retirement Contribution
+          source: Gross Pay Account
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+        - name: Employer Retirement Contribution # Some employers match contributions, FREE MONEY!
+          # No source here
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+        - name: Health Insurance Premium
+          source: Gross Pay Account
+          base_amount: 100.00
+          frequency: monthly
+          interest_rate: Inflation
+        - name: Take Home Pay
+          source: Gross Pay Account
+          destination: Checking Account Green
+          sweep_greater_than: 0.00 # This will assure the Gross Pay Account does not retain a balance
+        - name: Living Expenses
+          source: Checking Account Green
+          base_amount: 2000.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Retirement Maturation
+          maturation: True
+          interest_rate: Market
+          destination: Retirement
+```
+
+This is a bit more involved, but it is a clearer capture of the
+real world.  Let's set a retirement a few years in, that will
+make it more interesting.
+
+```yaml
+start: 2025-01-01
+end: 2074-12-31
+labeled_dates:
+  RETIREMENT: 2040-01-01
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+  Market: 
+    interest_type: basic
+    year_rate_percentage: 10.0
+action_manager:
+    assets:
+        - name: Gross Pay Account
+          type: asset
+          starting_balance: 0.00
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 0.00
+        - name: Retirement
+          type: asset
+          starting_balance: 0.00
+    transactions:
+        - name: Gross Pay
+          destination: Gross Pay Account
+          base_amount: 8000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+        - name: Employee Retirement Contribution
+          source: Gross Pay Account
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Employer Retirement Contribution # Some employers match contributions, FREE MONEY!
+          # No source here
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Health Insurance Premium
+          source: Gross Pay Account
+          base_amount: 100.00
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Take Home Pay
+          source: Gross Pay Account
+          destination: Checking Account Green
+          sweep_greater_than: 0.00 # This will assure the Gross Pay Account does not retain a balance
+        - name: Living Expenses
+          source: Checking Account Green
+          base_amount: 2000.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Retirement Maturation
+          maturation: True
+          interest_rate: Market
+          destination: Retirement
+```
+
+This plan fails in 2063 with insufficinet funds available in
+the checking account, but there is still plenty of money in the
+Retirement account.  Let's assume we can always withdraw for now.
+We can do some sort of periodic withdraw as has been shown multiple
+times via transactions, but we can also use a special configuration:
+`maintain_balance`.  As the name implies, this is a dynamic
+transaction that will attempt to maintain the balance of the
+destination at the requested level.
+
+```yaml
+# All same as above, but adding a transaction:
+        - name: Retirement Withdrawal
+          source: Retirement
+          destination: Checking Account Green
+          maintain_balance: 100000.00
+          start: RETIREMENT
+```
+
+No the plan succeeds, and we see the first withdrawal occur in
+2061 when the checking account balance falls below the threshold
+that was chosen.
+
+Multiple transactions like the one above can be setup to serially
+drain multiple retirement accounts.  If for whatever reason, you
+would like the simulation to immediately fail when attempting to
+maintain a balance and the source goes empty, you can add this
+flag:
+
+```yaml
+          error_on_insufficient_source: True
+```
+
+This is generally unnecessary because the plan will likely fail
+relatively soon anyways, but it can be helpful for narrowing down
+when it occurs if it is important.
+
+### Taxes
+
 For basic simulations, taxes can be represented as a simple
-transaction.
+transaction, but it can become a little cumbersome as the
+complexity rises.
 
 ## Story #4 - Other Tricks

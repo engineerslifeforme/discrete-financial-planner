@@ -1,0 +1,67 @@
+start: 2025-01-01
+end: 2074-12-31
+labeled_dates:
+  RETIREMENT: 2040-01-01
+interest_rates:
+  Inflation: 
+    interest_type: basic
+    year_rate_percentage: 3.0
+  Market: 
+    interest_type: basic
+    year_rate_percentage: 10.0
+action_manager:
+    assets:
+        - name: Gross Pay Account
+          type: asset
+          starting_balance: 0.00
+        - name: Checking Account Green
+          type: asset
+          starting_balance: 0.00
+        - name: Retirement
+          type: asset
+          starting_balance: 0.00
+    transactions:
+        - name: Gross Pay
+          destination: Gross Pay Account
+          base_amount: 8000.00
+          interest_rate: Inflation
+          frequency: monthly
+          end: RETIREMENT
+        - name: Employee Retirement Contribution
+          source: Gross Pay Account
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Employer Retirement Contribution # Some employers match contributions, FREE MONEY!
+          # No source here
+          destination: Retirement
+          base_amount: 400.00 # 5% of gross pay
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Health Insurance Premium
+          source: Gross Pay Account
+          base_amount: 100.00
+          frequency: monthly
+          interest_rate: Inflation
+          end: RETIREMENT
+        - name: Take Home Pay
+          source: Gross Pay Account
+          destination: Checking Account Green
+          sweep_greater_than: 0.00 # This will assure the Gross Pay Account does not retain a balance
+        - name: Living Expenses
+          source: Checking Account Green
+          base_amount: 2000.00
+          interest_rate: Inflation
+          frequency: monthly
+        - name: Retirement Maturation
+          maturation: True
+          interest_rate: Market
+          destination: Retirement
+        - name: Retirement Withdrawal
+          source: Retirement
+          destination: Checking Account Green
+          maintain_balance: 100000.00
+          start: RETIREMENT
